@@ -1,0 +1,22 @@
+{
+  "name": "fxios",
+  "version": "1.0.0",
+  "description": "this is an easy to use bot creator for the popular site www.fxp.co.il",
+  "main": "fxios.js",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "axios-cookiejar-support": "^1.0.0",
+    "body-parser": "^1.19.0",
+    "cheerio": "^1.0.0-rc.3",
+    "express": "^4.17.1",
+    "md5": "^2.2.1",
+    "request": "^2.88.2",
+    "tough-cookie": "^4.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "cute doggy",
+  "license": "ISC"
+}
