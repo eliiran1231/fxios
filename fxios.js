@@ -13,7 +13,6 @@ instance.defaults.jar = new tough.CookieJar();
 
 
 
-var securitytoken = fs.readFileSync("securitytoken.txt", "utf8")
 const bot = {
   login:function(username, password){ 
     return new Promise((resolve, reject) => {
@@ -82,12 +81,16 @@ const bot = {
   }, 
   logout:function(){
   instance.get("https://www.fxp.co.il/")
-    .then(function(response){
-    var securitytoken = response.data
-    console.log(securitytoken);
-     
-    })
+    .then(function(res){
+    var securitytoken = res.data.split('var SECURITYTOKEN = "')[1].split('"')[0]
+    instance.get("https://www.fxp.co.il/login.php?do=logout&logouthash=" + securitytoken)
+    .then((res) => {
     console.log("logged out")
+    })
+    .catch((err)=> {console.log(err);
+     }) 
+    })
+    
   },
   makelike:function(id, res){
     const data = querystring.stringify({
@@ -115,9 +118,9 @@ const bot = {
 
 }
 
-bot.login("lamfen", "bardok123")
+bot.login("username", "password")
 .then((res)=>{
-  bot.logout()
+  //any action
 })
 
 
