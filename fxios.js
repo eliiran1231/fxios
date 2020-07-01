@@ -92,25 +92,27 @@ const bot = {
     })
     
   },
-  makelike:function(id, res){
-    const data = querystring.stringify({
-      do: 'add_like',
-      postid: id,
-      securitytoken: res.data.split('var SECURITYTOKEN = "')[1].split('"')[0],
-      fxppro: ""
-    })
-    const options = querystring.stringify({
-      headers:{
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"  
-      } ,
-    })
-    axios.post("https://www.fxp.co.il/ajax.php", data, options)
+  makelike:function(id){
+    instance.get("https://www.fxp.co.il")
     .then((res) => {
-      console.log(`statusCode: ${res.statusCode}`);
-      console.log(res);
-    }) 
-    .catch((error) =>{
-      console.error(error);
+      const data = querystring.stringify({
+        do: 'add_like',
+        postid: id,
+        securitytoken: res.data.split('var SECURITYTOKEN = "')[1].split('"')[0],
+        fxppro: ""
+      })
+      const options = querystring.stringify({
+        headers:{
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"  
+        } ,
+      })
+      instance.post("https://www.fxp.co.il/ajax.php", data, options)
+      .then((respnse) => {
+        console.log("like added to message "+ id);
+      }) 
+      .catch((error) =>{
+        console.error(error);
+      })
     })
 
   
