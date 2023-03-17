@@ -5,11 +5,7 @@ const md5 = require('md5');
 const querystring = require('querystring');
 const io = require('socket.io-client')
 const cheerio = require('cheerio');
-const e = require('express');
 const axiosProxyTunnel = require('axios-proxy-tunnel')
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 
 
@@ -88,15 +84,16 @@ class Bot{
   }
     async login(username, password){ 
       const data = querystring.stringify({
-      do: "login",
-      vb_login_md5password: md5(password),
-      vb_login_md5password_utf: md5(password),
-      s: "",
-      securitytoken: "guest",
-      cookieuser: "1",
-      url: "https://www.fxp.co.il/",
-      vb_login_username: username,
-      vb_login_password: "",
+        vb_login_username: username,
+        vb_login_password: password,
+        loginbtn: "התחברות",
+        s: "",
+        to_homepage: "1",
+        securitytoken: "guest",
+        do: "login",
+        cookieuser: "1",
+        vb_login_md5password: "",
+        vb_login_md5password_utf: ""
     })
     await this.instance.post("https://www.fxp.co.il/login.php?do=login", data, options)
     var res = await this.instance.get("https://www.fxp.co.il")
@@ -507,10 +504,24 @@ class Bot{
         time: data.time,
         tag: data.prefix
       }
-      console.log(thread);
-      
+      callback(thread);  
   })
-}      
+  }
+  onNewMessageOnThread(thread_id,callback){
+    var socket = io.connect('https://socket5.fxp.co.il');
+    socket.on('connect',async()=>{
+    var thread = await this.instance.get("https://www.fxp.co.il/showthread.php?t="+thread_id)
+    var send = /send = '(.*?)'/g.exec(thread.data)[1];
+    console.log(send);
+    socket.send(send)
+
+    })
+  
+    socket.on('showthreadpost',async(data)=>{
+      const msg = await this.getQouteInfo(data.postid);
+      callback(msg);
+  })
+  }      
 }
 
 
