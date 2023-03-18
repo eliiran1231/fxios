@@ -112,7 +112,7 @@ var htmlToBBCode = function(html){
 
 }
 
-class Bot{
+export class Fxios{
   instance;
   info = {
     securitytoken:"",
@@ -561,4 +561,4 @@ class Bot{
 }
 
 
-module.exports = Bot;
+module.exports = Fxios;
