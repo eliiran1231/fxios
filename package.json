@@ -24,8 +24,7 @@
     "axios": "*",
     "axios-cookiejar-support": "*",
     "tough-cookie": "*",
-    "md5": "*",
-    "querystring": "^*",
+    "querystring": "*",
     "socket.io-client": "2.3.0",
     "cheerio": "*",
     "axios-proxy-tunnel": "*"
