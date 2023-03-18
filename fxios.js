@@ -1,5 +1,5 @@
 const axios = require('axios').default;
-const axiosCookieJarSupport = require('axios-cookiejar-support').default;
+const axiosCookieJarSupport = require('axios-cookiejar-support').wrapper;
 const tough = require('tough-cookie');
 const md5 = require('md5');
 const querystring = require('querystring');
@@ -348,7 +348,7 @@ class Bot{
   }
     async getQouteInfo(commentId){
       const data = querystring.stringify({
-        securitytoken: bot.info.securitytoken,
+        securitytoken: this.info.securitytoken,
         do: 'getquotes',
         p: commentId + ''
       })
@@ -358,7 +358,8 @@ class Bot{
       //getting the name of the message author
       const user = await this.getUserInfoByName(username);
       //scrapping more data about the message author using the name we scrapped
-      let Quote = /\[\w+[^UTF]+\w+\]/gm.exec(response.data)[0]
+      console.log(response.data);
+      let Quote = /\[QUOTE=(.*?);(.*?)\]((.|\n)*?)\[\/QUOTE]/gm.exec(response.data)[0]
       //scarpping the full VB Quote code 
 
 
@@ -387,14 +388,10 @@ class Bot{
               poststarttime: "1593688317"
             })  
       
-            instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId ,data, options)
+            this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId ,data, options)
             .then((respnse) => {
                 if(respnse.status != 200){
                   console.log(respnse.statusText);
-                }
-                else if(querystring.parse(data).securitytoken == null || querystring.parse(data).securitytoken == undefined || querystring.parse(data).id== null || querystring.parse(data).id== undefined){
-                getUserData()            
-                this.sendMessage(commentId, msg)
                 }
                 else{
               console.log("reply has been sent");  
