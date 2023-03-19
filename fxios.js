@@ -623,5 +623,4 @@ var Fxios = /** @class */ (function () {
     };
     return Fxios;
 }());
-exports.Fxios = Fxios;
 module.exports = Fxios;
