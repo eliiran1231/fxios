@@ -2,7 +2,7 @@
   "name": "fxios",
   "version": "1.0.0",
   "description": "FXP API",
-  "main": "fxios.js",
+  "main": "fxios.cjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
