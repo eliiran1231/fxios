@@ -41,15 +41,11 @@ var axios = require('axios').default;
 var axiosCookieJarSupport = require('axios-cookiejar-support').wrapper;
 var tough = require('tough-cookie');
 var md5 = require('md5');
-var querystring = require('querystring');
 var io = require('socket.io-client');
 var cheerio = require('cheerio');
 var axiosProxyTunnel = require('axios-proxy-tunnel');
-var options = querystring.stringify({
-    headers: {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36",
-    },
-});
+var querystring = require("query-string");
+var options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 var htmlToBBCode = function (html) {
     return html
         .replace(/&nbsp;/g, ' ')
@@ -286,11 +282,6 @@ var Fxios = /** @class */ (function () {
             reason: "",
             relpath: "showthread.php?p=" + commentId
         });
-        var options = querystring.stringify({
-            headers: {
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"
-            }
-        });
         this.instance.post("https://www.fxp.co.il/editpost.php?do=updatepost&postid=" + commentId, data, options)
             .then(function (respnse) {
             console.log("the massage content is now " + content);
@@ -456,7 +447,7 @@ var Fxios = /** @class */ (function () {
     };
     Fxios.prototype.onNewMessage = function (callback) {
         var _this = this;
-        var socket = io.connect('https://socket5.fxp.co.il');
+        var socket = io('https://socket5.fxp.co.il');
         socket.on('connect', function () {
             var send = _this.info.send;
             socket.send(send);
@@ -496,7 +487,7 @@ var Fxios = /** @class */ (function () {
     };
     Fxios.prototype.onNewLike = function (callback) {
         var _this = this;
-        var socket = io.connect('https://socket5.fxp.co.il');
+        var socket = io('https://socket5.fxp.co.il');
         socket.on('connect', function () {
             var send = _this.info.send;
             socket.send(send);
@@ -523,7 +514,7 @@ var Fxios = /** @class */ (function () {
     };
     Fxios.prototype.onNewPM = function (callback) {
         var _this = this;
-        var socket = io.connect('https://socket5.fxp.co.il');
+        var socket = io('https://socket5.fxp.co.il');
         socket.on('connect', function () {
             var send = _this.info.send;
             socket.send(send);
@@ -557,7 +548,7 @@ var Fxios = /** @class */ (function () {
             var socket;
             var _this = this;
             return __generator(this, function (_a) {
-                socket = io.connect('https://socket5.fxp.co.il');
+                socket = io('https://socket5.fxp.co.il');
                 socket.on('connect', function () { return __awaiter(_this, void 0, void 0, function () {
                     var forum, send;
                     return __generator(this, function (_a) {
@@ -602,7 +593,7 @@ var Fxios = /** @class */ (function () {
     };
     Fxios.prototype.onNewMessageOnThread = function (thread_id, callback) {
         var _this = this;
-        var socket = io.connect('https://socket5.fxp.co.il');
+        var socket = io('https://socket5.fxp.co.il');
         socket.on('connect', function () { return __awaiter(_this, void 0, void 0, function () {
             var thread, send;
             return __generator(this, function (_a) {
