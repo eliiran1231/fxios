@@ -1,8 +1,9 @@
 {
+  "type":"module"
   "name": "fxios",
   "version": "1.0.0",
   "description": "FXP API",
-  "main": "fxios.cjs",
+  "main": "fxios.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
