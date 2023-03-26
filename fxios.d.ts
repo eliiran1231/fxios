@@ -1,21 +1,21 @@
-interface User {
+export interface User {
     name: string;
     id: number;
     subname: string;
     isConnected: boolean;
 }
-interface Message {
+export interface Message {
     author: () => User;
     id: () => number;
     VBQuote: () => string;
     content: () => string;
     reply: (msg: string) => void;
 }
-interface Like {
+export interface Like {
     messageLiked: Message;
     memberLiked: User;
 }
-interface Thread {
+export interface Thread {
     content: string;
     id: number;
     title: string;
@@ -23,7 +23,7 @@ interface Thread {
     time: string;
     tag: string;
 }
-interface PM {
+export interface PM {
     content: string;
     author: User;
     id: number;
@@ -31,7 +31,9 @@ interface PM {
     time: string;
     reply: (msg: string) => void;
 }
-export declare class Fxios {
+export declare const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
+export declare var htmlToBBCode: (html: string) => string;
+declare class Fxios {
     instance: any;
     info: {
         securitytoken: string;
@@ -58,4 +60,4 @@ export declare class Fxios {
     onNewThread(forumId: number, callback: (thread: Thread) => void): Promise<void>;
     onNewMessageOnThread(thread_id: number, callback: (msg: Message) => void): void;
 }
-export {};
+export default Fxios;
