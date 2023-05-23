@@ -1,5 +1,5 @@
 # Fxios.d.ts
-This file contains the typedefs for Fxios, a library for interacting with the Fxios API. It includes all the necessary types for interacting with the API, as well as a class for making all the calls to the API. 
+this library is for interacting with https://www.fxp.co.il via JavaScript
 
 ## Types 
 The following types are defined in the file: 
