@@ -371,25 +371,30 @@ export default class Fxios {
         });
         socket.on('newreply', async (data) => {
             var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + data.thread_id + '&page=90000');
-            const $ = load(res.data, { decodeEntities: false });
-            function TheId() { return $('#posts').children().last().attr('id').replace('post_', ""); }
-            function post() { return $('#posts').children().last().html(); }
-            const c = load(post(), { decodeEntities: false });
-            function VBQuote() { return `[QUOTE=${data.username};${TheId()}]${content()}[/QUOTE]<br><br>`; }
-            function content() { return htmlToBBCode(c('#post_message_' + TheId()).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''); }
+            const $ = load(res.data.replace(/<li id="ynet-vid">((.|\n)*?)<\/li>/g,""), { decodeEntities: false });
+            function TheId(){ 
+                let match = res.data.match(/<li class="postbit postbitim postcontainer" id="post_(.*?)">/g);
+                match=match[match.length-1];
+                match=match.match(/id="post_(.*?)">/)[1];
+                return match;
+             }
+            let post = $('#post_'+TheId()).html();
+            const c = load(post, { decodeEntities: false });
             const user = {
                 name: data.username,
                 id: Number(c('.user-picture-holder').attr('data-user-id')),
                 subname: c('.usertitle').text().replace(/\n/g, ''),
-                isConnected: post().includes(data.username + " מחובר" || data.username + " מחוברת"),
+                isConnected: post.includes(data.username + " מחובר" || data.username + " מחוברת"),
             };
             const message = {
                 author: () => { return user; },
                 id: () => { return Number(TheId()); },
-                VBQuote: function () { return `[QUOTE=${data.username};${TheId()}]${content()}[/QUOTE]<br><br>`; },
-                content: function () { return htmlToBBCode(c('#post_message_' + TheId()).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''); },
-                reply: (msg) => { this.sendMessage(data.thread_id, VBQuote() + msg); }
+                VBQuote: function () {},
+                content: function () { return c('#post_message_' + TheId()).html()== null?"היי, תוכל לבקש ממני לחזור על עצמי? לא הצלחתי להעביר את הרעיון שלי כראוי":htmlToBBCode(c('#post_message_' + TheId()).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''); },
+                reply: ()=>{}
             };
+            message.VBQuote = ()=>`[QUOTE=${data.username};${TheId()}]${message.content()}[/QUOTE]<br><br>`;
+            message.reply = (msg) => { this.sendMessage(data.thread_id, message.VBQuote() + msg); }
             callback(message);
         });
     }
@@ -416,6 +421,7 @@ export default class Fxios {
             socket.send(send);
         });
         socket.on('newpmonpage', async (data) => {
+            if(data.send == this.info.userId) return;
             const pm = {
                 content: data.message,
                 author: await this.getUserInfo(data.send),
@@ -436,7 +442,7 @@ export default class Fxios {
         });
         socket.on('newtread', async (data) => {
             var res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + data.id);
-            var content = /<blockquote class="restore">(.*?)<\/blockquote>/g.exec(res.data)[1];
+            var content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];
             var thread = {
                 content: htmlToBBCode(content).trim(),
                 id: Number(data.id),
