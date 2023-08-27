@@ -54,6 +54,13 @@ export var htmlToBBCode = function (html) {
         .replace(/\$\.\^/g, '<br>')
         .replace(/^<br>|<br>$/g, '');
 };
+function delay() {
+    return new Promise(resolve => setTimeout(resolve, 2000)).then(()=>{
+        queue.shift();
+        if(queue.length > 0)queue[0]();
+    });
+}
+var queue = [];
 
 export default class Fxios {
     constructor() {
@@ -166,13 +173,17 @@ export default class Fxios {
             loggedinuser: this.info.userId + "",
             poststarttime: "1593688317"
         });
-        this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&t=" + showtherdId, data, options)
+        let element = ()=> this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&t=" + showtherdId, data, options)
             .then((respnse) => {
-            console.log("message has been sent");
+            queue.shift();
+            if(queue.length > 0)queue[0]();
         })
             .catch((err) => {
             console.log(err);
         });
+        queue.push(element);
+        queue.push(delay)
+        if(queue.length == 2) queue[0]();
     }
     newthread(forumId, tag, title, content) {
         var securitytoken = this.info.securitytoken;
@@ -370,12 +381,12 @@ export default class Fxios {
             socket.send(send);
         });
         socket.on('newreply', async (data) => {
-            var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + data.thread_id + '&page=90000');
+            var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + data.thread_id + '&page=9000000');
             const $ = load(res.data.replace(/<li id="ynet-vid">((.|\n)*?)<\/li>/g,""), { decodeEntities: false });
             function TheId(){ 
-                let match = res.data.match(/<li class="postbit postbitim postcontainer" id="post_(.*?)">/g);
-                match=match[match.length-1];
-                match=match.match(/id="post_(.*?)">/)[1];
+                let match = $('.postbit').filter(function(_, node) {
+                    return $(node).find('.username:contains('+data.username+')').length > 0;
+                }).last().attr("id").replace("post_","");
                 return match;
              }
             let post = $('#post_'+TheId()).html();
