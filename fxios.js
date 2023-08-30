@@ -5,6 +5,7 @@ import { load } from 'cheerio';
 import axiosProxyTunnel from 'axios-proxy-tunnel';
 import querystring from "query-string";
 import io from 'socket.io-client';
+import { data } from 'cheerio/lib/api/attributes';
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
     return html
@@ -160,8 +161,8 @@ export default class Fxios {
         const data = querystring.stringify({
             securitytoken: securitytoken,
             ajax: "1",
-            message_backup: message.replace("\n","<br>") + "",
-            message: message.replace("\n","<br>") + "",
+            message_backup: (message + "").replace(/\n/g,"<br>"),
+            message: (message + "").replace(/\n/g,"<br>"),
             wysiwyg: "1",
             signature: "1",
             fromquickreply: "1",
@@ -374,6 +375,47 @@ export default class Fxios {
         };
         return new Promise(resolve => resolve(message)).catch(reject => reject("there was an error"));
     }
+    async getThreadInfo(thread_id){
+        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id+"&pp=100000");
+        let content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];   
+        let thread = {
+            content: htmlToBBCode(content).trim(),
+            id: Number(thread_id),
+            title: load(res.data)("h1").text().replace('&quot;', '"'),
+            author: await this.getUserInfo(Number(res.data.match(/<div class="user-picture-holder" data-user-id="(.*?)">/)[1])),
+            messages:async(page=1)=>{
+                let list = [];
+                var res = await this.instance.get('https://www.fxp.co.il/showthread.php?p=' + page +"&pp=40")
+                let $ = load(res.data,{decodeEntities: false});
+                let messages = $(".blockbody");
+                
+                messages.each(async(i,message)=>{
+                let c = load(message,{decodeEntities:false});
+                let messgaeId = Number(c("li").attr("id"));
+                let userId=Number(c('.user-picture-holder').attr('data-user-id'));
+                let username = msg.find(".user_pic_"+userId).children().attr("title").replace("הסמל האישי של","").trim();
+                const user = {
+                    name: username,
+                    id: userId,
+                    subname: c('.usertitle').text().replace(/\n/g, ''),
+                    isConnected: post.includes(username + " מחובר" || username + " מחוברת"),
+                };
+                const info = {
+                    author: () => user,
+                    id: () => messgaeId,
+                    VBQuote: function () {},
+                    content: () => htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
+                    reply: ()=>{}
+                };
+                message.VBQuote = ()=>`[QUOTE=${username};${messgaeId}]${message.content()}[/QUOTE]<br><br>`;
+                message.reply = (msg) => this.sendMessage(Number(thread_id), message.VBQuote() + msg); 
+                list.push(info);
+                })
+                return list;
+            }
+        };
+        return thread;
+    }
     onNewMessage(callback) {
         var socket = io.connect('https://socket5.fxp.co.il');
         socket.on('connect', () => {
@@ -452,16 +494,7 @@ export default class Fxios {
             socket.send(send);
         });
         socket.on('newtread', async (data) => {
-            var res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + data.id);
-            var content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];
-            var thread = {
-                content: htmlToBBCode(content).trim(),
-                id: Number(data.id),
-                title: data.title.replace('&quot;', '"'),
-                author: await this.getUserInfo(data.poster),
-                time: data.time,
-                tag: data.prefix
-            };
+            let thread = await this.getThreadInfo(data.id);
             callback(thread);
         });
     }
@@ -477,5 +510,29 @@ export default class Fxios {
             const msg = await this.getQouteInfo(data.postid);
             callback(msg);
         });
+    }
+    async getAdminsInfo() {
+        let res = await axios.get("https://www.fxp.co.il/showgroups.php");
+        let $ = load(res.data, { decodeEntities: false });
+        let groups = $(".blockbody");
+        let htmls = [];
+        let teams = [[], [], [], []];
+        groups.each((i, e) => htmls.push(e));
+        let i = htmls.length-1;
+        for (let html of htmls) {
+            let c = load(html, { decodeEntities: false });
+            c("h4").children().each((i2, e2) => {
+                let element = load(e2, { decodeEntities: false });
+                teams[i].push({
+                    id: Number(element("a").attr("href").replace(/\D/g, "")),
+                    name: element("a").text(),
+                    isConnected: element("a").attr("class") == "username online"
+                });
+            }
+            );
+            i--;
+        }
+    
+        return teams;
     }
 }

@@ -31,6 +31,13 @@ export interface PM {
     time: string;
     reply: (msg: string) => void;
 }
+
+export interface Admin{
+    name: string;
+    id: number;
+    isConnected: boolean;
+}
+
 export declare const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export declare var htmlToBBCode: (html: string) => string;
 declare class Fxios {
@@ -54,10 +61,12 @@ declare class Fxios {
     getUserInfo(id: number): Promise<User>;
     getUserInfoByName(username: string): Promise<User>;
     getQouteInfo(commentId: number): Promise<Message>;
+    getThreadInfo(id:number):Promise<User[]>;
     onNewMessage(callback: (msg: Message) => void): void;
     onNewLike(callback: (like: Like) => void): void;
     onNewPM(callback: (pm: PM) => void): void;
     onNewThread(forumId: number, callback: (thread: Thread) => void): Promise<void>;
     onNewMessageOnThread(thread_id: number, callback: (msg: Message) => void): void;
+    getAdminsInfo(): Promise<Admin[][]>;
 }
 export default Fxios;
