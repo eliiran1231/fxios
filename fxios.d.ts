@@ -20,8 +20,8 @@ export interface Thread {
     id: number;
     title: string;
     author: User;
-    time: string;
-    tag: string;
+    lastPage: number;
+    messages: (page: number,max:number,pp:number,callback:(message:Message)=>void) => Promise<Message[][]>;
 }
 export interface PM {
     content: string;
@@ -51,8 +51,8 @@ declare class Fxios {
     login(username: string, password: string): Promise<void>;
     addmember(username: string, password: string): void;
     logout(): void;
-    makelike(commentId: number): void;
-    sendMessage(showtherdId: number, message: string): void;
+    makelike(commentId: number): Promise<void>;
+    sendMessage(showtherdId: number, message: string): Promise<void>;
     newthread(forumId: number, tag: number, title: string, content: string): void;
     deleteMessage(commentId: number): void;
     editMessage(commentId: number, content: string): void;
@@ -61,12 +61,13 @@ declare class Fxios {
     getUserInfo(id: number): Promise<User>;
     getUserInfoByName(username: string): Promise<User>;
     getQouteInfo(commentId: number): Promise<Message>;
-    getThreadInfo(id:number):Promise<User[]>;
+    getThreadInfo(id:number):Promise<Thread>;
     onNewMessage(callback: (msg: Message) => void): void;
     onNewLike(callback: (like: Like) => void): void;
     onNewPM(callback: (pm: PM) => void): void;
     onNewThread(forumId: number, callback: (thread: Thread) => void): Promise<void>;
     onNewMessageOnThread(thread_id: number, callback: (msg: Message) => void): void;
     getAdminsInfo(): Promise<Admin[][]>;
+    getTopThreads(forumId: number): Promise<number[]>;
 }
 export default Fxios;

@@ -148,7 +148,7 @@ export default class Fxios {
             postid: commentId + "",
             securitytoken: securitytoken,
         });
-        this.instance.post("https://www.fxp.co.il/ajax.php", data, options)
+        return this.instance.post("https://www.fxp.co.il/ajax.php", data, options)
             .then((respnse) => {
             console.log("like added to message " + commentId);
         })
@@ -185,6 +185,7 @@ export default class Fxios {
         queue.push(element);
         queue.push(delay)
         if(queue.length == 2) queue[0]();
+        return element;
     }
     newthread(forumId, tag, title, content) {
         var securitytoken = this.info.securitytoken;
@@ -376,42 +377,50 @@ export default class Fxios {
         return new Promise(resolve => resolve(message)).catch(reject => reject("there was an error"));
     }
     async getThreadInfo(thread_id){
-        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id+"&pp=100000");
+        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id+"&pp=15");
         let content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];   
+        let lastPage = load(res.data)(".first_last").children().attr("href");
+        if(lastPage)lastPage=lastPage.replace(/printthread.php\?t=(.*?)&pp=(.*?)&page=/,"");
         let thread = {
             content: htmlToBBCode(content).trim(),
             id: Number(thread_id),
             title: load(res.data)("h1").text().replace('&quot;', '"'),
-            author: await this.getUserInfo(Number(res.data.match(/<div class="user-picture-holder" data-user-id="(.*?)">/)[1])),
-            messages:async(page=1)=>{
-                let list = [];
-                var res = await this.instance.get('https://www.fxp.co.il/showthread.php?p=' + page +"&pp=40")
-                let $ = load(res.data,{decodeEntities: false});
-                let messages = $(".blockbody");
-                
-                messages.each(async(i,message)=>{
-                let c = load(message,{decodeEntities:false});
-                let messgaeId = Number(c("li").attr("id"));
-                let userId=Number(c('.user-picture-holder').attr('data-user-id'));
-                let username = msg.find(".user_pic_"+userId).children().attr("title").replace("הסמל האישי של","").trim();
-                const user = {
-                    name: username,
-                    id: userId,
-                    subname: c('.usertitle').text().replace(/\n/g, ''),
-                    isConnected: post.includes(username + " מחובר" || username + " מחוברת"),
-                };
-                const info = {
-                    author: () => user,
-                    id: () => messgaeId,
-                    VBQuote: function () {},
-                    content: () => htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
-                    reply: ()=>{}
-                };
-                message.VBQuote = ()=>`[QUOTE=${username};${messgaeId}]${message.content()}[/QUOTE]<br><br>`;
-                message.reply = (msg) => this.sendMessage(Number(thread_id), message.VBQuote() + msg); 
-                list.push(info);
-                })
-                return list;
+            author: await this.getUserInfoByName(res.data.match(/<span class="username">(.*?)<\/span>/)[1]),
+            lastPage: lastPage?Number(lastPage):1,
+            messages:async(page=1,last=null,pp=15, callback)=>{
+                if(last == null || last < 1) last = Math.round((thread.lastPage-1)*15/pp);
+                let pages = ["pages:"]
+                for (let i = page-1; i <= last; i++) {
+                    let list = ["messages:"];
+                    var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t='+thread_id+"&page=" + (page+i) +"&pp="+pp)
+                    let $ = load(res.data,{decodeEntities: false});
+                    let messages = $("li.postbit.postbitim.postcontainer");
+                    messages.each(async(i,message)=>{
+                    let c = load(message,{decodeEntities:false});
+                    let messgaeId = Number(c("li.postbit.postbitim.postcontainer").attr("id").replace(/\D/g,""));
+                    let userId= Number(c('.user-picture-holder').attr('data-user-id'));
+                    let username = c(".user_pic_"+userId).children().attr("alt").replace("הסמל האישי של","").trim();
+                    const user = {
+                        name: username,
+                        id: userId,
+                        subname: c('.usertitle').text().replace(/\n/g, ''),
+                        isConnected: c(".inlineimg").attr("alt").includes("מחובר"),
+                    };
+                    const info = {
+                        author: ()=> user,
+                        id: ()=> messgaeId,
+                        VBQuote: ()=>"function () {}",
+                        content:()=> htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
+                        reply: ()=>{}
+                    };
+                    info.VBQuote = ()=>`[QUOTE=${username};${messgaeId}]${info.content()}[/QUOTE]<br><br>`;
+                    info.reply = (msg) => this.sendMessage(Number(thread_id), message.VBQuote() + msg); 
+                    list.push(info);
+                    if(callback)callback(info);
+                    })
+                    pages[i+1]=list;
+                }
+                return pages;
             }
         };
         return thread;
@@ -534,5 +543,12 @@ export default class Fxios {
         }
     
         return teams;
+    }
+    async getTopThreads(forumId){
+        let res = await axios.get("https://www.fxp.co.il/forumdisplay.php?f="+forumId)
+        let $ = load(res.data);
+        let ids = []
+        $("#threads").children().each((i,e)=>ids.push(Number(load(e)("li").attr("id").replace(/\D/g,""))))
+        return ids;
     }
 }
