@@ -5,7 +5,6 @@ import { load } from 'cheerio';
 import axiosProxyTunnel from 'axios-proxy-tunnel';
 import querystring from "query-string";
 import io from 'socket.io-client';
-import { data } from 'cheerio/lib/api/attributes';
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
     return html
@@ -102,6 +101,11 @@ export default class Fxios {
         this.info.securitytoken = securitytoken[1];
         this.info.send = send[1];
         this.info.userId = Number(userId[1]);
+        this.socket = io.connect('https://socket5.fxp.co.il');
+        socket.on('connect', () => {
+            var send = this.info.send;
+            socket.send(send);
+        });
         console.log("logged in");
     }
     addmember(username, password) {
@@ -122,7 +126,7 @@ export default class Fxios {
             month: "",
             year: ""
         });
-        axios.post("https://www.fxp.co.il/register.php?do=addmember", data)
+        return axios.post("https://www.fxp.co.il/register.php?do=addmember", data)
             .then((res) => {
             console.log(`statusCode: ${res.status}`);
             console.log("the user " + username + " has created sueccesfully");
@@ -133,7 +137,7 @@ export default class Fxios {
     }
     logout() {
         var securitytoken = this.info.securitytoken;
-        this.instance.get("https://www.fxp.co.il/login.php?do=logout&logouthash=" + securitytoken)
+        return this.instance.get("https://www.fxp.co.il/login.php?do=logout&logouthash=" + securitytoken)
             .then((respnse) => {
             console.log('logged out');
         })
@@ -206,7 +210,7 @@ export default class Fxios {
             signature: "1",
             parseurl: "1"
         });
-        this.instance.post("https://www.fxp.co.il/newthread.php?do=postthread&f=" + forumId, data, options)
+        return this.instance.post("https://www.fxp.co.il/newthread.php?do=postthread&f=" + forumId, data, options)
             .then(() => {
             console.log("new showthread has created");
         })
@@ -223,7 +227,7 @@ export default class Fxios {
             url: "https://www.fxp.co.il/showthread.php?p=" + commentId,
             do: "deletepost"
         });
-        this.instance.post("https://www.fxp.co.il/editpost.php?do=deletepost&p=" + commentId, data, options)
+        return this.instance.post("https://www.fxp.co.il/editpost.php?do=deletepost&p=" + commentId, data, options)
             .then(() => {
             console.log("the message " + commentId + " has deleted");
         })
@@ -243,7 +247,7 @@ export default class Fxios {
             reason: "",
             relpath: "showthread.php?p=" + commentId
         });
-        this.instance.post("https://www.fxp.co.il/editpost.php?do=updatepost&postid=" + commentId, data, options)
+        return this.instance.post("https://www.fxp.co.il/editpost.php?do=updatepost&postid=" + commentId, data, options)
             .then(() => {
             console.log("the massage content is now " + content);
         })
@@ -264,7 +268,7 @@ export default class Fxios {
             parseurl: "1",
             frompage: "1"
         });
-        this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
+        return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
             .then(() => {
             console.log('new private message has been sent and it is "' + message + '" now');
         })
@@ -290,7 +294,7 @@ export default class Fxios {
             fastchatpm: "1",
             wysiwyg: "1",
         });
-        this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
+        return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
             .then(() => {
             console.log("private message has been sent to chat number " + pmId);
         })
@@ -307,8 +311,7 @@ export default class Fxios {
             subname: $('.usertitle').text(),
             isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false
         };
-        return new Promise(resolve => resolve(user))
-            .catch((reject) => reject("there was an error"));
+        return user;
     }
     async getUserInfoByName(username) {
         const res = await axios.get("https://www.fxp.co.il/member.php?username=" + encodeURI(username));
@@ -319,8 +322,7 @@ export default class Fxios {
             subname: $('.usertitle').text(),
             isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false
         };
-        return new Promise(resolve => resolve(user))
-            .catch((reject) => reject("there was an error"));
+        return user;
     }
     async getQouteInfo(commentId) {
         const data = querystring.stringify({
@@ -360,7 +362,7 @@ export default class Fxios {
                     loggedinuser: this.info.userId + "",
                     poststarttime: "1593688317"
                 });
-                this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId, data, options)
+                return this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId, data, options)
                     .then((respnse) => {
                     if (respnse.status != 200) {
                         console.log(respnse.statusText);
@@ -374,7 +376,7 @@ export default class Fxios {
                 });
             }
         };
-        return new Promise(resolve => resolve(message)).catch(reject => reject("there was an error"));
+        return message;
     }
     async getThreadInfo(thread_id){
         let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id+"&pp=15");
@@ -426,21 +428,16 @@ export default class Fxios {
         return thread;
     }
     onNewMessage(callback) {
-        var socket = io.connect('https://socket5.fxp.co.il');
-        socket.on('connect', () => {
-            var send = this.info.send;
-            socket.send(send);
-        });
-        socket.on('newreply', async (data) => {
+        this.socket.on('newreply', async (data) => {
             var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + data.thread_id + '&page=9000000');
             const $ = load(res.data.replace(/<li id="ynet-vid">((.|\n)*?)<\/li>/g,""), { decodeEntities: false });
-            function TheId(){ 
+            let id =(()=>{ 
                 let match = $('.postbit').filter(function(_, node) {
                     return $(node).find('.username:contains('+data.username+')').length > 0;
                 }).last().attr("id").replace("post_","");
                 return match;
-             }
-            let post = $('#post_'+TheId()).html();
+            })();
+            let post = $('#post_'+id).html();
             const c = load(post, { decodeEntities: false });
             const user = {
                 name: data.username,
@@ -449,24 +446,19 @@ export default class Fxios {
                 isConnected: post.includes(data.username + " מחובר" || data.username + " מחוברת"),
             };
             const message = {
-                author: () => { return user; },
-                id: () => { return Number(TheId()); },
-                VBQuote: function () {},
-                content: function () { return c('#post_message_' + TheId()).html()== null?"היי, תוכל לבקש ממני לחזור על עצמי? לא הצלחתי להעביר את הרעיון שלי כראוי":htmlToBBCode(c('#post_message_' + TheId()).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''); },
+                author: () =>  user,
+                id: () => Number(id),
+                VBQuote: ()=>{},
+                content: ()=> htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
                 reply: ()=>{}
             };
             message.VBQuote = ()=>`[QUOTE=${data.username};${TheId()}]${message.content()}[/QUOTE]<br><br>`;
-            message.reply = (msg) => { this.sendMessage(data.thread_id, message.VBQuote() + msg); }
-            callback(message);
+            message.reply = (msg) => this.sendMessage(data.thread_id, message.VBQuote() + msg);
+            callback(message,data.qouted);
         });
     }
     onNewLike(callback) {
-        var socket = io.connect('https://socket5.fxp.co.il');
-        socket.on('connect', () => {
-            var send = this.info.send;
-            socket.send(send);
-        });
-        socket.on('new_like', async (data) => {
+        this.socket.on('new_like', async (data) => {
             var message = await this.getQouteInfo(data.postid);
             var member = await this.getUserInfoByName(data.username);
             var obj = {
@@ -477,12 +469,7 @@ export default class Fxios {
         });
     }
     onNewPM(callback) {
-        var socket = io.connect('https://socket5.fxp.co.il');
-        socket.on('connect', () => {
-            var send = this.info.send;
-            socket.send(send);
-        });
-        socket.on('newpmonpage', async (data) => {
+        this.socket.on('newpmonpage', async (data) => {
             if(data.send == this.info.userId) return;
             const pm = {
                 content: data.message,
@@ -495,7 +482,7 @@ export default class Fxios {
             callback(pm);
         });
     }
-    async onNewThread(forumId, callback) {
+    onNewThread(forumId, callback) {
         var socket = io.connect('https://socket5.fxp.co.il');
         socket.on('connect', async () => {
             var forum = await this.instance.get('https://www.fxp.co.il/forumdisplay.php?f=' + forumId + '&web_fast_fxp=1');
