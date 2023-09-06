@@ -102,7 +102,7 @@ export default class Fxios {
         this.info.send = send[1];
         this.info.userId = Number(userId[1]);
         this.socket = io.connect('https://socket5.fxp.co.il');
-        socket.on('connect', () => {
+        this.socket.on('connect', () => {
             var send = this.info.send;
             socket.send(send);
         });
@@ -189,7 +189,7 @@ export default class Fxios {
         queue.push(element);
         queue.push(delay)
         if(queue.length == 2) queue[0]();
-        return element;
+        return element();
     }
     newthread(forumId, tag, title, content) {
         var securitytoken = this.info.securitytoken;
