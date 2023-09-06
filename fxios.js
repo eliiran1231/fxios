@@ -104,7 +104,7 @@ export default class Fxios {
         this.socket = io.connect('https://socket5.fxp.co.il');
         this.socket.on('connect', () => {
             var send = this.info.send;
-            socket.send(send);
+            this.socket.send(send);
         });
         console.log("logged in");
     }
