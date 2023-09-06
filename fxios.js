@@ -436,7 +436,7 @@ export default class Fxios {
                 content: ()=> htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
                 reply: ()=>{}
             };
-            message.VBQuote = ()=>`[QUOTE=${data.username};${TheId()}]${message.content()}[/QUOTE]<br><br>`;
+            message.VBQuote = ()=>`[QUOTE=${data.username};${id}]${message.content()}[/QUOTE]<br><br>`;
             message.reply = (msg) => this.sendMessage(data.thread_id, message.VBQuote() + msg);
             callback(message,data.qouted);
         });
