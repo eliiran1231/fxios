@@ -55,13 +55,8 @@ export var htmlToBBCode = function (html) {
         .replace(/^<br>|<br>$/g, '');
 };
 function delay() {
-    return new Promise(resolve => setTimeout(resolve, 2000)).then(()=>{
-        queue.shift();
-        if(queue.length > 0)queue[0]();
-    });
+    return new Promise(resolve => setTimeout(resolve, 2000));
 }
-var queue = [];
-
 export default class Fxios {
     constructor() {
         this.info = {
@@ -178,18 +173,7 @@ export default class Fxios {
             loggedinuser: this.info.userId + "",
             poststarttime: "1593688317"
         });
-        let element = ()=> this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&t=" + showtherdId, data, options)
-            .then((respnse) => {
-            queue.shift();
-            if(queue.length > 0)queue[0]();
-        })
-            .catch((err) => {
-            console.log(err);
-        });
-        queue.push(element);
-        queue.push(delay)
-        if(queue.length == 2) queue[0]();
-        return element();
+        return this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&t=" + showtherdId, data, options);
     }
     newthread(forumId, tag, title, content) {
         var securitytoken = this.info.securitytoken;
