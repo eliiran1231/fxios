@@ -15,7 +15,7 @@ export var htmlToBBCode = function (html) {
         .replace(/\n/g, '')
         .replace(/<a href="member.php\?u=(.*?)" style="text-decoration: none;color:#0e5ba7;">(.*?)<\/a>/, "[taguser]$1[/taguser]")
         .replace(/<h[1-7](.*?)>((.|\n|<br>)*?)<\/h[1-7]>/, "<br>[h]$2[/h]<br>")
-        .replace(/<iframe(.*?)id="(.*?)_(.*?)"(.*?)>((.|\n|<br>)*?)<\/iframe>/g, "https://www.youtube.com/watch?v=$2")
+        .replace(/<iframe.*src="\/\/www.youtube.com\/embed\/(.*)\?.*<\/iframe>/g, ' https://www.youtube.com/watch?v=$1 ')
         .replace(/<source src="https:\/\/voice2.fcdn.co.il\/sound2\/(.*?).mp3" type="audio\/mpeg">/gm, '[voice2]$1[/voice2]')
         .replace(/  Your browser does not support the audio element./g, '')
         .replace(/<div class="bbcode_code" style="height:36px;"><code><code>((.|\n|<br>)*?)<\/code><\/code><\/div>/gm, '$1'.replace(/<span style="color: #(.*?)">/, '').replace("</span>", "").replace('&nbsp;', " "))
@@ -54,6 +54,16 @@ export var htmlToBBCode = function (html) {
         .replace(/\$\.\^/g, '<br>')
         .replace(/^<br>|<br>$/g, '');
 };
+function scrappUserInfo(message) {
+    let c = load(message, { decodeEntities: false });
+    let id = Number(c('.user-picture-holder').attr('data-user-id'));
+    let name = c(".user_pic_" + id).children().attr("alt").replace("הסמל האישי של", "").trim();
+    let subname = c('.usertitle').text().replace(/\n/g, '');
+    let isConnected = c(".inlineimg").attr("alt").includes("מחובר")
+    return {id,name,subname,isConnected};
+}
+
+
 function delay() {
     return new Promise(resolve => setTimeout(resolve, 2000));
 }
@@ -123,22 +133,22 @@ export default class Fxios {
         });
         return axios.post("https://www.fxp.co.il/register.php?do=addmember", data)
             .then((res) => {
-            console.log(`statusCode: ${res.status}`);
-            console.log("the user " + username + " has created sueccesfully");
-        })
+                console.log(`statusCode: ${res.status}`);
+                console.log("the user " + username + " has created sueccesfully");
+            })
             .catch((error) => {
-            console.error(error);
-        });
+                console.error(error);
+            });
     }
     logout() {
         var securitytoken = this.info.securitytoken;
         return this.instance.get("https://www.fxp.co.il/login.php?do=logout&logouthash=" + securitytoken)
             .then((respnse) => {
-            console.log('logged out');
-        })
+                console.log('logged out');
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     makelike(commentId) {
         var securitytoken = this.info.securitytoken;
@@ -149,19 +159,19 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/ajax.php", data, options)
             .then((respnse) => {
-            console.log("like added to message " + commentId);
-        })
+                console.log("like added to message " + commentId);
+            })
             .catch((error) => {
-            console.log(error);
-        });
+                console.log(error);
+            });
     }
     sendMessage(showtherdId, message) {
         var securitytoken = this.info.securitytoken;
         const data = querystring.stringify({
             securitytoken: securitytoken,
             ajax: "1",
-            message_backup: (message + "").replace(/\n/g,"<br>"),
-            message: (message + "").replace(/\n/g,"<br>"),
+            message_backup: (message + "").replace(/\n/g, "<br>"),
+            message: (message + "").replace(/\n/g, "<br>"),
             wysiwyg: "1",
             signature: "1",
             fromquickreply: "1",
@@ -196,11 +206,11 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/newthread.php?do=postthread&f=" + forumId, data, options)
             .then(() => {
-            console.log("new showthread has created");
-        })
+                console.log("new showthread has created");
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     deleteMessage(commentId) {
         var securitytoken = this.info.securitytoken;
@@ -213,11 +223,11 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/editpost.php?do=deletepost&p=" + commentId, data, options)
             .then(() => {
-            console.log("the message " + commentId + " has deleted");
-        })
+                console.log("the message " + commentId + " has deleted");
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     editMessage(commentId, content) {
         var securitytoken = this.info.securitytoken;
@@ -233,11 +243,11 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/editpost.php?do=updatepost&postid=" + commentId, data, options)
             .then(() => {
-            console.log("the massage content is now " + content);
-        })
+                console.log("the massage content is now " + content);
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     sendNewPM(user, subject, message) {
         var securitytoken = this.info.securitytoken;
@@ -254,11 +264,11 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
             .then(() => {
-            console.log('new private message has been sent and it is "' + message + '" now');
-        })
+                console.log('new private message has been sent and it is "' + message + '" now');
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     sendPM(pmId, user, message) {
         var securitytoken = this.info.securitytoken;
@@ -280,11 +290,11 @@ export default class Fxios {
         });
         return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
             .then(() => {
-            console.log("private message has been sent to chat number " + pmId);
-        })
+                console.log("private message has been sent to chat number " + pmId);
+            })
             .catch((err) => {
-            console.log(err);
-        });
+                console.log(err);
+            });
     }
     async getUserInfo(id) {
         const res = await axios.get("https://www.fxp.co.il/member.php?u=" + id);
@@ -301,10 +311,10 @@ export default class Fxios {
         const res = await axios.get("https://www.fxp.co.il/member.php?username=" + encodeURI(username));
         const $ = load(res.data);
         const user = {
-            name: $('.member_username').text(),
+            name: username,
             id: Number(/(?<=u=)\d+(?=\&)/gm.exec(res.data)),
             subname: $('.usertitle').text(),
-            isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false
+            isConnected: res.data.includes(username + " לא" + " מחובר/ת") == false
         };
         return user;
     }
@@ -348,63 +358,55 @@ export default class Fxios {
                 });
                 return this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId, data, options)
                     .then((respnse) => {
-                    if (respnse.status != 200) {
-                        console.log(respnse.statusText);
-                    }
-                    else {
-                        console.log("reply has been sent");
-                    }
-                })
+                        if (respnse.status != 200) {
+                            console.log(respnse.statusText);
+                        }
+                        else {
+                            console.log("reply has been sent");
+                        }
+                    })
                     .catch(() => {
-                    console.log("reply has been sent");
-                });
+                        console.log("reply has been sent");
+                    });
             }
         };
         return message;
     }
-    async getThreadInfo(thread_id){
-        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id+"&pp=15");
-        let content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];   
+    async getThreadInfo(thread_id) {
+        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id + "&pp=15");
+        let content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];
         let lastPage = load(res.data)(".first_last").children().attr("href");
-        if(lastPage)lastPage=lastPage.replace(/printthread.php\?t=(.*?)&pp=(.*?)&page=/,"");
+        if (lastPage) lastPage = lastPage.replace(/printthread.php\?t=(.*?)&pp=(.*?)&page=/, "");
         let thread = {
             content: htmlToBBCode(content).trim(),
             id: Number(thread_id),
             title: load(res.data)("h1").text().replace('&quot;', '"'),
             author: await this.getUserInfoByName(res.data.match(/<span class="username">(.*?)<\/span>/)[1]),
-            lastPage: lastPage?Number(lastPage):1,
-            messages:async(page=1,last=null,pp=15, callback)=>{
-                if(last == null || last < 1) last = Math.round((thread.lastPage-1)*15/pp);
+            lastPage: lastPage ? Number(lastPage) : 1,
+            messages: async (page = 1, last = null, pp = 15, callback) => {
+                if (last == null || last < 1) last = Math.round((thread.lastPage - 1) * 15 / pp);
                 let pages = ["pages:"]
-                for (let i = page-1; i <= last; i++) {
+                for (let i = page - 1; i <= last; i++) {
                     let list = ["messages:"];
-                    var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t='+thread_id+"&page=" + (page+i) +"&pp="+pp)
-                    let $ = load(res.data,{decodeEntities: false});
+                    var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + thread_id + "&page=" + (page + i) + "&pp=" + pp)
+                    let $ = load(res.data, { decodeEntities: false });
                     let messages = $("li.postbit.postbitim.postcontainer");
-                    messages.each(async(i,message)=>{
-                    let c = load(message,{decodeEntities:false});
-                    let messgaeId = Number(c("li.postbit.postbitim.postcontainer").attr("id").replace(/\D/g,""));
-                    let userId= Number(c('.user-picture-holder').attr('data-user-id'));
-                    let username = c(".user_pic_"+userId).children().attr("alt").replace("הסמל האישי של","").trim();
-                    const user = {
-                        name: username,
-                        id: userId,
-                        subname: c('.usertitle').text().replace(/\n/g, ''),
-                        isConnected: c(".inlineimg").attr("alt").includes("מחובר"),
-                    };
-                    const info = {
-                        author: ()=> user,
-                        id: ()=> messgaeId,
-                        VBQuote: ()=>"function () {}",
-                        content:()=> htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
-                        reply: ()=>{}
-                    };
-                    info.VBQuote = ()=>`[QUOTE=${username};${messgaeId}]${info.content()}[/QUOTE]<br><br>`;
-                    info.reply = (msg) => this.sendMessage(Number(thread_id), message.VBQuote() + msg); 
-                    list.push(info);
-                    if(callback)callback(info);
+                    messages.each(async (i, message) => {
+                        let user = scrappUserInfo(message);
+                        let messgaeId = Number(c("li.postbit.postbitim.postcontainer").attr("id").replace(/\D/g, ""));
+                        const info = {
+                            author: () => user,
+                            id: () => messgaeId,
+                            VBQuote: () => "function () {}",
+                            content: () => htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
+                            reply: () => { }
+                        };
+                        info.VBQuote = () => `[QUOTE=${username};${messgaeId}]${info.content()}[/QUOTE]<br><br>`;
+                        info.reply = (msg) => this.sendMessage(Number(thread_id), info.VBQuote() + msg);
+                        list.push(info);
+                        if (callback) callback(info);
                     })
-                    pages[i+1]=list;
+                    pages[i + 1] = list;
                 }
                 return pages;
             }
@@ -414,31 +416,26 @@ export default class Fxios {
     onNewMessage(callback) {
         this.socket.on('newreply', async (data) => {
             var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + data.thread_id + '&page=9000000');
-            const $ = load(res.data.replace(/<li id="ynet-vid">((.|\n)*?)<\/li>/g,""), { decodeEntities: false });
-            let id =(()=>{ 
-                let match = $('.postbit').filter(function(_, node) {
-                    return $(node).find('.username:contains('+data.username+')').length > 0;
-                }).last().attr("id").replace("post_","");
+            const $ = load(res.data.replace(/<li id="ynet-vid">((.|\n)*?)<\/li>/g, ""), { decodeEntities: false });
+            let id = (() => {
+                let match = $('.postbit').filter(function (_, node) {
+                    return $(node).find('.username:contains(' + data.username + ')').length > 0;
+                }).last().attr("id").replace("post_", "");
                 return match;
             })();
-            let post = $('#post_'+id).html();
-            const c = load(post, { decodeEntities: false });
-            const user = {
-                name: data.username,
-                id: Number(c('.user-picture-holder').attr('data-user-id')),
-                subname: c('.usertitle').text().replace(/\n/g, ''),
-                isConnected: post.includes(data.username + " מחובר" || data.username + " מחוברת"),
-            };
+            let post = $('#post_' + id).html();
+            let c = load(post,{decodeEntities:false});
+            const user = scrappUserInfo(post);
             const message = {
-                author: () =>  user,
+                author: () => user,
                 id: () => Number(id),
-                VBQuote: ()=>{},
-                content: ()=> htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
-                reply: ()=>{}
+                VBQuote: () => { },
+                content: () => htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
+                reply: () => { }
             };
-            message.VBQuote = ()=>`[QUOTE=${data.username};${id}]${message.content()}[/QUOTE]<br><br>`;
+            message.VBQuote = () => `[QUOTE=${data.username};${id}]${message.content()}[/QUOTE]<br><br>`;
             message.reply = (msg) => this.sendMessage(data.thread_id, message.VBQuote() + msg);
-            callback(message,data.qouted);
+            callback(message, data.qouted);
         });
     }
     onNewLike(callback) {
@@ -454,7 +451,7 @@ export default class Fxios {
     }
     onNewPM(callback) {
         this.socket.on('newpmonpage', async (data) => {
-            if(data.send == this.info.userId) return;
+            if (data.send == this.info.userId) return;
             const pm = {
                 content: data.message,
                 author: await this.getUserInfo(data.send),
@@ -492,34 +489,49 @@ export default class Fxios {
         });
     }
     async getAdminsInfo() {
-        let res = await axios.get("https://www.fxp.co.il/showgroups.php");
-        let $ = load(res.data, { decodeEntities: false });
-        let groups = $(".blockbody");
-        let htmls = [];
-        let teams = [[], [], [], []];
-        groups.each((i, e) => htmls.push(e));
-        let i = htmls.length-1;
-        for (let html of htmls) {
-            let c = load(html, { decodeEntities: false });
-            c("h4").children().each((i2, e2) => {
-                let element = load(e2, { decodeEntities: false });
-                teams[i].push({
-                    id: Number(element("a").attr("href").replace(/\D/g, "")),
-                    name: element("a").text(),
-                    isConnected: element("a").attr("class") == "username online"
-                });
-            }
-            );
-            i--;
+        const res = await axios.get("https://www.fxp.co.il/showgroups.php");
+        const regex = /<a href="member\.php\?u=(\d+)" class="username (\w+)".*><span class="usermarkup (\w+)">(.*)<\/span>/g;
+        let admins = [];
+        let mathces = res.data.matchAll(regex)
+        for (const match of mathces) {
+            admins.push({
+                id: Number(match[1]),
+                isConnected: match[2] == "online",
+                rank: match[3],
+                name: match[4].replace('<img src="//static.fcdn.co.il/images3/sp.gif" alt />', "").trim()
+            })
         }
-    
-        return teams;
+        return admins;
     }
-    async getTopThreads(forumId){
-        let res = await axios.get("https://www.fxp.co.il/forumdisplay.php?f="+forumId)
-        let $ = load(res.data);
-        let ids = []
-        $("#threads").children().each((i,e)=>ids.push(Number(load(e)("li").attr("id").replace(/\D/g,""))))
-        return ids;
+    async getTopThreads(forumId) {
+        const regex = /id="thread_title_(\d+)"/g;
+        const response = await axios.get('https://www.fxp.co.il/forumdisplay.php?f=' + forumId + '&web_fast_fxp=1');
+        const data = await response.data;
+        const values = [...data.matchAll(regex)];
+        return values.map(value => parseInt(value.at(1)));
+    }
+    async uploadAudio(audio, duration,sox) {
+        let res = await this.instance.post("https://www.fxp.co.il/ajax.php", querystring.stringify({
+            do: "insert_voice_data",
+            thread_voice: 0,
+            duration: duration,
+            sox: sox,
+            f_id: 0,
+            securitytoken: this.info.securitytoken
+        }), options)
+    
+        let data = res.data;
+        let link = await this.instance.post("https://voice.fcdn.co.il/sound", querystring.stringify({
+            function: "insertaudio",
+            data: audio,
+            p: 0,
+            id: data.en_id,
+            vid: data.voice_id,
+            vid2: data.en_int_id,
+            u_id: this.info.userId,
+            to: data.to,
+            f_id: 0
+        }), options)
+        return link.data;
     }
 }
