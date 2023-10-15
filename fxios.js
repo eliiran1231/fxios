@@ -54,19 +54,66 @@ export var htmlToBBCode = function (html) {
         .replace(/\$\.\^/g, '<br>')
         .replace(/^<br>|<br>$/g, '');
 };
-function scrappUserInfo(message) {
+async function getMore(html){
+    let $ = load(html);
+    let friendss = $(".friends a.username");
+    let friends = [];
+    friendss.map((i,e)=>{
+        let b=load(e)("a");
+        friends.push({name:b.attr("title"), id:Number(b.attr('href').replace(/\D/g,""))});
+    })
+    
+    let val = $("#view-aboutme > div:nth-child(2)").find("dd");
+    let field= $("#view-aboutme > div:nth-child(2)").find("dt");
+
+    let gen = {}
+    for (let i = 0; i < field.length; i++) {
+        gen[translate(load(field[i]).text())]=load(val[i]).text()
+    }
+    
+    let stats = $("dl.stats.blockrow dd");
+    stats = {
+        toalMessages: Number($(stats[0]).text().trim().replace(/,/g,"")),
+        messagesPerDay: Number($(stats[1]).text().trim()),
+        totalLikes: Number($(stats[2]).text().trim()),
+        totalFollowers: Number($(stats[3]).text().trim()),
+        lastActivityDate: $(stats[4]).text().trim(),
+        registeredAt:$(stats[5]).text().trim()
+    }
+    
+    let signature = htmlToBBCode($(".signature_holder").html());
+    
+    return {gen,friends,stats,signature};
+}
+function scrappUserInfo(message,instance) {
     let c = load(message, { decodeEntities: false });
     let id = Number(c('.user-picture-holder').attr('data-user-id'));
     let name = c(".user_pic_" + id).children().attr("alt").replace("הסמל האישי של", "").trim();
     let subname = c('.usertitle').text().replace(/\n/g, '');
     let isConnected = c(".inlineimg").attr("alt").includes("מחובר")
-    return {id,name,subname,isConnected};
+    let more = async()=>{
+        let html = (await axios.get("https://www.fxp.co.il/member.php?u="+id)).data;
+        return getMore(html);
+    }
+
+
+    return {id,name,subname,isConnected,more};
+}
+function translate(field){
+    switch(field){
+        case "שם פרטי:": return "personalName"
+        case "ביוגרפיה:": return "biography" 
+        case "תחומי עניין:": return "hobbies" 
+        case "מקצוע:": return "profession" 
+        case "מין:": return "sex" 
+        case "סטאטוס זוגי:": return "relationshipStatus" 
+        case "מתעניין/ת ב:": return "attractedTo" 
+        case "איזור מגורים:": return "livingArea" 
+        case "עיר מגורים:": return "city" 
+    }
 }
 
 
-function delay() {
-    return new Promise(resolve => setTimeout(resolve, 2000));
-}
 export default class Fxios {
     constructor() {
         this.info = {
@@ -303,7 +350,8 @@ export default class Fxios {
             name: $('.member_username').text(),
             id: Number(id),
             subname: $('.usertitle').text(),
-            isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false
+            isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false,
+            getMore:()=>getMore(res.data)
         };
         return user;
     }
@@ -314,7 +362,8 @@ export default class Fxios {
             name: username,
             id: Number(/(?<=u=)\d+(?=\&)/gm.exec(res.data)),
             subname: $('.usertitle').text(),
-            isConnected: res.data.includes(username + " לא" + " מחובר/ת") == false
+            isConnected: res.data.includes(username + " לא" + " מחובר/ת") == false,
+            getMore:()=>getMore(res.data)
         };
         return user;
     }
@@ -392,7 +441,7 @@ export default class Fxios {
                     let $ = load(res.data, { decodeEntities: false });
                     let messages = $("li.postbit.postbitim.postcontainer");
                     messages.each(async (i, message) => {
-                        let user = scrappUserInfo(message);
+                        let user = scrappUserInfo(message,this.instance);
                         let messgaeId = Number(c("li.postbit.postbitim.postcontainer").attr("id").replace(/\D/g, ""));
                         const info = {
                             author: () => user,
@@ -425,7 +474,7 @@ export default class Fxios {
             })();
             let post = $('#post_' + id).html();
             let c = load(post,{decodeEntities:false});
-            const user = scrappUserInfo(post);
+            const user = scrappUserInfo(post,this.instance);
             const message = {
                 author: () => user,
                 id: () => Number(id),
