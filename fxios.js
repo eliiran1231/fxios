@@ -4,6 +4,7 @@ import { CookieJar as tough } from 'tough-cookie';
 import { load } from 'cheerio';
 import axiosProxyTunnel from 'axios-proxy-tunnel';
 import querystring from "query-string";
+import crypto from "crypto"
 import io from 'socket.io-client';
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
@@ -122,7 +123,7 @@ export default class Fxios {
             send: ""
         };
         this.instance = axios.create({
-            withCredentials: true
+            withCredentials: true,
         });
         axiosCookieJarSupport(this.instance);
         this.instance.defaults.jar = new tough();
@@ -161,6 +162,7 @@ export default class Fxios {
         console.log("logged in");
     }
     addmember(username, password) {
+        let md5 = crypto.createHash('md5').update(password).digest('hex');
         const data = querystring.stringify({
             username: username,
             password: password,
@@ -171,9 +173,9 @@ export default class Fxios {
             s: "",
             securitytoken: "guest",
             do: 'addmember',
-            url: "https://www.fxp.co.il/",
-            password_md5: "",
-            passwordconfirm_md5: "",
+            url: "https://www.fxp.co.il/login.php?do=login",
+            password_md5: md5,
+            passwordconfirm_md5: md5,
             day: "",
             month: "",
             year: ""
