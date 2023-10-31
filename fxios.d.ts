@@ -5,6 +5,7 @@ export interface User {
     subname: string;
     isConnected: boolean;
     getMore: ()=>Promise<UserMore>
+    rank: string;
 }
 
 export interface UserMore{

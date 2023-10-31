@@ -9,6 +9,7 @@ import io from 'socket.io-client';
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
     return html
+        .replace(/<img(.*?)src="(.*?)"(.*?)>/gi, "[img]$2[/img]")
         .replace(/&nbsp;/g, ' ')
         .replace(/<div class="bbcode_container">((.|\n|<br>)*?)<strong>(.*?)<\/strong>((.|\n|<br>)*?)p=(.*?)#((.|\n|<br>)*?)<div class="message">((.|\n|<br>)*?)<\/div>/g, '[QUOTE=$3;$6]$9[/QUOTE]<br><br><br>')
         .replace(/<pre(.*?)>(.*?)<\/pre>/gmi, "[code]$2[/code]")
@@ -44,8 +45,7 @@ export var htmlToBBCode = function (html) {
         .replace(/<\/ul>/gi, "s[/list]")
         .replace(/<div>/gi, "")
         .replace(/<\/div>/gi, "")
-        .replace(/<img(.*?)src="(.*?)"(.*?)>/gi, "[img]$2[/img]")
-        .replace(/<a(.*?)href="(.*?)"(.*?)> ((.|\n|<br>)*?)<\/a>/gi, "[url=$2]$4[/url]")
+        .replace(/<a(.*?)href="(.*?)"(.*?)>((.|\n|<br>)*?)<\/a>/gi, "[url=$2]$4[/url]")
         .replace(/<head>(.*?)<\/head>/gmi, "")
         .replace(/<script(.*?)>(.*?)<\/script>/gmi, "")
         .replace(/<style(.*?)>(.*?)<\/style>/gmi, "")
@@ -96,9 +96,9 @@ function scrappUserInfo(message,instance) {
         let html = (await axios.get("https://www.fxp.co.il/member.php?u="+id)).data;
         return getMore(html);
     }
+    let rank = $(".username_container strong span").attr("class");
 
-
-    return {id,name,subname,isConnected,more};
+    return {id,name,subname,isConnected,rank,more};
 }
 function translate(field){
     switch(field){
@@ -349,10 +349,11 @@ export default class Fxios {
         const res = await axios.get("https://www.fxp.co.il/member.php?u=" + id);
         const $ = load(res.data);
         const user = {
-            name: $('.member_username').text(),
+            name: $('.member_username').text().trim(),
             id: Number(id),
             subname: $('.usertitle').text(),
             isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false,
+            rank: $(".member_username span").attr("class"),
             getMore:()=>getMore(res.data)
         };
         return user;
@@ -365,6 +366,7 @@ export default class Fxios {
             id: Number(/(?<=u=)\d+(?=\&)/gm.exec(res.data)),
             subname: $('.usertitle').text(),
             isConnected: res.data.includes(username + " לא" + " מחובר/ת") == false,
+            rank: $(".member_username span").attr("class"),
             getMore:()=>getMore(res.data)
         };
         return user;
