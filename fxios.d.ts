@@ -80,7 +80,8 @@ declare class Fxios {
     };
     constructor();
     login(username: string, password: string): Promise<void>;
-    addmember(username: string, password: string): Promise<void>;
+    addmember(username: string, password: string, email?:string): Promise<{created:boolean,validated:boolean,data:any}>;
+    addmembers(usernames: string[], password: string): Promise<{created:number, validated:number, error:number}>;
     logout(): Promise<void>;
     makelike(commentId: number): Promise<void>;
     sendMessage(showtherdId: number, message: string): Promise<void>;

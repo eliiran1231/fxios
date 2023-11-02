@@ -2,6 +2,7 @@ import axios from 'axios';
 import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
 import { CookieJar as tough } from 'tough-cookie';
 import { load } from 'cheerio';
+import Gmailnator from "./modules/validateUser.js"
 import axiosProxyTunnel from 'axios-proxy-tunnel';
 import querystring from "query-string";
 import crypto from "crypto"
@@ -117,6 +118,7 @@ function translate(field){
 
 export default class Fxios {
     constructor() {
+        this.gmailClient = null;
         this.info = {
             securitytoken: "",
             userId: 0,
@@ -161,14 +163,19 @@ export default class Fxios {
         });
         console.log("logged in");
     }
-    addmember(username, password) {
+    async addmember(username, password, email) {
         let md5 = crypto.createHash('md5').update(password).digest('hex');
+        if(!this.gmailClient){
+            this.gmailClient= new Gmailnator();
+            await this.gmailClient.init();
+        }
+        let gmail = email? email:await this.gmailClient.generateGmail();
         const data = querystring.stringify({
             username: username,
             password: password,
-            passwordconfirm: "",
-            email: username + "e@gmail.com",
-            emailconfirm: "",
+            passwordconfirm: password,
+            email: gmail,
+            emailconfirm: gmail,
             agree: "1",
             s: "",
             securitytoken: "guest",
@@ -181,13 +188,52 @@ export default class Fxios {
             year: ""
         });
         return axios.post("https://www.fxp.co.il/register.php?do=addmember", data)
-            .then((res) => {
-                console.log(`statusCode: ${res.status}`);
+            .then(async(res) => {
+                if (!res.data.includes("נשלחה הודעה בנוגע לפרטי החשבון שלך לכתובת")){
+                    console.log("couldnt create a new user! make sure your username is in English!");
+                    return {created:false,validated:false,data:res.data};
+                }
                 console.log("the user " + username + " has created sueccesfully");
+                let validated = false; 
+                if(gmail != email)validated = await this.gmailClient.validateUser(gmail,username);
+                return {created:true,validated:validated!=false,data:res.data};
             })
             .catch((error) => {
                 console.error(error);
+                return {created:false,validated:false,data:error};
             });
+    }
+    async addmembers(usernames,password){
+    return new Promise(async(resolve)=>{    
+            if(!this.gmailClient){
+                this.gmailClient= new Gmailnator();
+                await this.gmailClient.init();
+            }
+            let stats = {
+                created:[],
+                validated:[],
+                error:[]
+            };
+            let gmails = this.gmailClient.generateGmails(usernames.length);
+            for(let i = 0; i < usernames.length; i++){
+                this.addmember(usernames[i],password,gmails[i]).then((status)=>{
+                    let stack={username:usernames[i],gmail:gmails[i]};
+                    if(!status.created) {
+                        stats.error.push(stack)
+                        return;
+                    }
+                    stats.created.push(stack)
+                    this.gmailClient.validateUser(gmails[i],usernames[i]).then((validated)=>{
+                        if(validated)stats.validated.push(stack);
+                        if((stats.created.length+stats.validated.length+stats.error.length) == usernames.length) {
+                            console.log(stats);
+                            resolve(stats);
+                        }
+                    })
+                })
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        })
     }
     logout() {
         var securitytoken = this.info.securitytoken;
