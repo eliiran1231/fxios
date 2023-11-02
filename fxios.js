@@ -214,7 +214,7 @@ export default class Fxios {
                 validated:[],
                 error:[]
             };
-            let gmails = this.gmailClient.generateGmails(usernames.length);
+            let gmails = await this.gmailClient.generateGmails(usernames.length);
             for(let i = 0; i < usernames.length; i++){
                 this.addmember(usernames[i],password,gmails[i]).then((status)=>{
                     let stack={username:usernames[i],gmail:gmails[i]};
