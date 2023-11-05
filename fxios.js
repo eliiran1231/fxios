@@ -2,11 +2,11 @@ import axios from 'axios';
 import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
 import { CookieJar as tough } from 'tough-cookie';
 import { load } from 'cheerio';
-import Gmailnator from "./modules/validateUser.js"
-import axiosProxyTunnel from 'axios-proxy-tunnel';
+import Gmailnator from "./modules/validateUser.js";
 import querystring from "query-string";
-import crypto from "crypto"
+import crypto from "crypto";
 import io from 'socket.io-client';
+import { HttpsProxyAgent } from "https-proxy-agent";
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
     return html
@@ -117,8 +117,21 @@ function translate(field){
 
 
 export default class Fxios {
-    constructor() {
+    constructor(proxies) {
+        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(":"))
         this.gmailClient = null;
+        this.proxyManager = {
+            proxies,
+            nextProxy:async()=>{
+                return new Promise((resolve)=>{
+                    let proxies = this.proxyManager.proxies;
+                    if(!proxies || proxies.length == 0) return;
+                    proxies.push(proxies.shift());
+                    this.proxyManager.proxies=proxies;
+                    resolve(proxies[0]);
+                })
+            }
+        };
         this.info = {
             securitytoken: "",
             userId: 0,
@@ -129,7 +142,6 @@ export default class Fxios {
         });
         axiosCookieJarSupport(this.instance);
         this.instance.defaults.jar = new tough();
-        axiosProxyTunnel(this.instance);
     }
     async login(username, password) {
         const data = querystring.stringify({
@@ -187,8 +199,11 @@ export default class Fxios {
             month: "",
             year: ""
         });
-        return axios.post("https://www.fxp.co.il/register.php?do=addmember", data)
+        return axios.post("https://www.fxp.co.il/register.php?do=addmember", data, {
+            httpsAgent:this.proxyManager.proxies && new HttpsProxyAgent("http://"+this.proxyManager.proxies[0])
+        })
             .then(async(res) => {
+                await this.proxyManager.nextProxy();
                 if (!res.data.includes("נשלחה הודעה בנוגע לפרטי החשבון שלך לכתובת")){
                     console.log("couldnt create a new user! make sure your username is in English!");
                     return {created:false,validated:false,data:res.data};
@@ -204,36 +219,36 @@ export default class Fxios {
             });
     }
     async addmembers(usernames,password){
-    return new Promise(async(resolve)=>{    
-            if(!this.gmailClient){
-                this.gmailClient= new Gmailnator();
-                await this.gmailClient.init();
-            }
-            let stats = {
-                created:[],
-                validated:[],
-                error:[]
-            };
-            let gmails = await this.gmailClient.generateGmails(usernames.length);
-            for(let i = 0; i < usernames.length; i++){
-                this.addmember(usernames[i],password,gmails[i]).then((status)=>{
-                    let stack={username:usernames[i],gmail:gmails[i]};
-                    if(!status.created) {
-                        stats.error.push(stack)
-                        return;
-                    }
-                    stats.created.push(stack)
-                    this.gmailClient.validateUser(gmails[i],usernames[i]).then((validated)=>{
-                        if(validated)stats.validated.push(stack);
-                        if((stats.created.length+stats.validated.length+stats.error.length) == usernames.length) {
-                            console.log(stats);
-                            resolve(stats);
-                        }
-                    })
+        if(!this.gmailClient){
+            this.gmailClient= new Gmailnator();
+            await this.gmailClient.init();
+        }
+        let hasProxies=this.proxyManager.proxies && this.proxyManager.proxies.length > 0;
+        if(!hasProxies) {
+            this.proxyManager.proxies=[false];
+            console.log("notice: you havent provided any proxy adress, which means you are completely exposed to fxp's manegment. also, this will take more time");
+        }
+        else if(this.proxyManager.proxies.length < usernames.length) console.log("notice: you dont have enough proxies. this may result some issues");
+        let gmails = await this.gmailClient.generateGmails(usernames.length);
+        let task = (i)=>new Promise(async(resolve)=>{
+            hasProxies || await new Promise(resolve => setTimeout(resolve, 1500*i));
+            let stack={username:usernames[i],gmail:gmails[i], created:false,validated:false};
+            this.addmember(stack.username,password,stack.gmail).then((status)=>{
+                if(!status.created) {
+                    resolve(stack);
+                    return;
+                }
+                stack.created=true
+                this.gmailClient.validateUser(gmails[i],usernames[i]).then(async(validated)=>{
+                    stack.validated=validated;
+                    resolve(stack);
+                }).catch(()=>{
+                    resolve(stack);
                 })
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        })
+            }).catch(()=>resolve(stack))
+        });
+        let tasks = new Array(usernames.length).fill(null).map((e,i)=>task(i));
+        return Promise.all(tasks);
     }
     logout() {
         var securitytoken = this.info.securitytoken;
