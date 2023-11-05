@@ -23,6 +23,8 @@
   "dependencies": {
     "axios": "*",
     "axios-cookiejar-support": "*",
+    "https-proxy-agent":"*",
+    "http-cookie-agent":"*",
     "tough-cookie": "*",
     "querystring": "*",
     "query-string": "^8.1.0",
