@@ -142,14 +142,16 @@ export default class Fxios {
         let jar = new tough();
         this.instance = axios.create({
             withCredentials: true,
-            httpsAgent: new HttpsCookieProxyAgent({
+            httpsAgent: args?new HttpsCookieProxyAgent({
                 hostname:args[1][0],
                 username:args[0][0],
                 password:args[0][1],
                 port:Number(args[1][1]),
                 cookies:{
-                    jar:jar
+                    jar
                 }
+            }):new HttpsCookieAgent({
+                cookies:{jar}
             })
         });
         axiosCookieJarSupport(this.instance);
