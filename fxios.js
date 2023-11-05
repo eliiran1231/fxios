@@ -6,6 +6,7 @@ import Gmailnator from "./modules/validateUser.js";
 import querystring from "query-string";
 import crypto from "crypto";
 import io from 'socket.io-client';
+import {HttpCookieAgent,HttpsCookieAgent, createCookieAgent} from "http-cookie-agent/http"
 import { HttpsProxyAgent } from "https-proxy-agent";
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
 export var htmlToBBCode = function (html) {
@@ -118,7 +119,8 @@ function translate(field){
 
 export default class Fxios {
     constructor(proxies) {
-        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(":"))
+        const HttpsCookieProxyAgent=createCookieAgent(HttpsProxyAgent);
+        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(":"));
         this.gmailClient = null;
         this.proxyManager = {
             proxies,
@@ -137,11 +139,20 @@ export default class Fxios {
             userId: 0,
             send: ""
         };
+        let jar = new tough();
         this.instance = axios.create({
             withCredentials: true,
+            httpsAgent: new HttpsCookieProxyAgent({
+                hostname:args[1][0],
+                username:args[0][0],
+                password:args[0][1],
+                port:Number(args[1][1]),
+                cookies:{
+                    jar:jar
+                }
+            })
         });
         axiosCookieJarSupport(this.instance);
-        this.instance.defaults.jar = new tough();
     }
     async login(username, password) {
         const data = querystring.stringify({
