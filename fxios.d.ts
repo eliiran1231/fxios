@@ -1,4 +1,4 @@
-import {AxiosInstance} from "axios"
+import {AxiosInstance, AxiosResponse} from "axios"
 export interface User {
     name: string;
     id: number;
@@ -24,12 +24,15 @@ export interface UserMore{
         id: number;
     }[]
     stats: {
-        toalMessages: number;
+        totalMessages: number;
         messagesPerDay: number;
         totalLikes: number;
         totalFollowers: number;
-        lastActivityDate: string;
-        registeredAt: string;
+        lastActivityDate?: Date;
+        joinDate?: Date;
+        totalFriendMessages?: number;
+        lastFriendMessageDate?:Date;
+        birthDate?:Date;
       }
     signature: string;
 }
@@ -79,17 +82,17 @@ declare class Fxios {
         send: string;
     };
     constructor();
-    login(username: string, password: string): Promise<void>;
+    login(username: string, password: string): Promise<AxiosResponse<any,any>>;
     addmember(username: string, password: string, email?:string): Promise<{created:boolean,validated:boolean,data:any}>;
-    addmembers(usernames: string[], password: string): Promise<{username:string,gmail:string, created:boolean,validated:boolean}[]>;
-    logout(): Promise<void>;
-    makelike(commentId: number): Promise<void>;
-    sendMessage(showtherdId: number, message: string): Promise<void>;
-    newthread(forumId: number, tag: number, title: string, content: string): Promise<void>;
-    deleteMessage(commentId: number): Promise<void>;
-    editMessage(commentId: number, content: string): Promise<void>;
-    sendNewPM(user: number, subject: string, message: string): Promise<void>;
-    sendPM(pmId: number, user: number, message: string): Promise<void>;
+    addmembers(usernames: string[], password: string, safeMode: boolean): Promise<{username:string,gmail:string, created:boolean,validated:boolean}[]>;
+    logout(): Promise<AxiosResponse<any,any>>;
+    makelike(commentId: number): Promise<AxiosResponse<any,any>>;
+    sendMessage(showtherdId: number, message: string): Promise<AxiosResponse<any,any>>;
+    newthread(forumId: number, tag: number, title: string, content: string): Promise<AxiosResponse<any,any>>;
+    deleteMessage(commentId: number): Promise<AxiosResponse<any,any>>;
+    editMessage(commentId: number, content: string): Promise<AxiosResponse<any,any>>;
+    sendNewPM(user: number, subject: string, message: string): Promise<AxiosResponse<any,any>>;
+    sendPM(pmId: number, user: number, message: string): Promise<AxiosResponse<any,any>>;
     getUserInfo(id: number): Promise<User>;
     getUserInfoByName(username: string): Promise<User>;
     getQouteInfo(commentId: number): Promise<Message>;

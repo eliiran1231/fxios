@@ -66,26 +66,30 @@ async function getMore(html){
         friends.push({name:b.attr("title"), id:Number(b.attr('href').replace(/\D/g,""))});
     })
     
-    let val = $("#view-aboutme > div:nth-child(2)").find("dd");
-    let field= $("#view-aboutme > div:nth-child(2)").find("dt");
+    const table = $("#view-aboutme > div:nth-child(2)");
+    let values = table.find("dd");
+    let fields= table.find("dt");
 
     let gen = {}
-    for (let i = 0; i < field.length; i++) {
-        gen[translate(load(field[i]).text())]=load(val[i]).text()
+    for (let i = 0; i < fields.length; i++) {
+        gen[translate($(fields[i]).text().trim())]=load(values[i]).text().trim()
     }
     
-    let stats = $("dl.stats.blockrow dd");
-    stats = {
-        toalMessages: Number($(stats[0]).text().trim().replace(/,/g,"")),
-        messagesPerDay: Number($(stats[1]).text().trim()),
-        totalLikes: Number($(stats[2]).text().trim()),
-        totalFollowers: Number($(stats[3]).text().trim()),
-        lastActivityDate: $(stats[4]).text().trim(),
-        registeredAt:$(stats[5]).text().trim()
+    let stats = {};
+    values = $("dl.stats.blockrow dd");
+    fields = $("dl.stats.blockrow dt");
+    for (let i = 0; i < fields.length; i++) {
+        let value = load(values[i]).text().trim().replace(/,/g,"");
+        let field = translate($(fields[i]).text().trim());
+        if(field.includes("Date")){
+            let [day, month, year] = value.split("-");
+            stats[field] = new Date(`${month}-${day}-${year}`);
+        } 
+        else stats[field] = isNaN(value) ? value: Number(value);
     }
-    
-    let signature = htmlToBBCode($(".signature_holder").html());
-    
+
+    let signature = $(".signature_holder").html();
+    signature = signature && htmlToBBCode(signature);
     return {gen,friends,stats,signature};
 }
 function scrappUserInfo(message,instance) {
@@ -102,36 +106,46 @@ function scrappUserInfo(message,instance) {
 
     return {id,name,subname,isConnected,rank,more};
 }
-function translate(field){
-    switch(field){
-        case "שם פרטי:": return "personalName"
-        case "ביוגרפיה:": return "biography" 
-        case "תחומי עניין:": return "hobbies" 
-        case "מקצוע:": return "profession" 
-        case "מין:": return "sex" 
-        case "סטאטוס זוגי:": return "relationshipStatus" 
-        case "מתעניין/ת ב:": return "attractedTo" 
-        case "איזור מגורים:": return "livingArea" 
-        case "עיר מגורים:": return "city" 
+function translate(fields){
+    fields=fields.replace(":","");
+    switch(fields){
+        case "שם פרטי": return "personalName"
+        case "ביוגרפיה": return "biography" 
+        case "תחומי עניין": return "hobbies" 
+        case "מקצוע": return "profession" 
+        case "מין": return "sex" 
+        case "סטאטוס זוגי": return "relationshipStatus" 
+        case "מתעניין/ת ב": return "attractedTo" 
+        case "איזור מגורים": return "livingArea" 
+        case "עיר מגורים": return "city" 
+        case "סך הכל הודעות": return 'totalMessages';
+        case "מס' הודעות ביום": return 'messagesPerDay';
+        case "סך הכל לייקים": return 'totalLikes';
+        case "סך הכל עוקבים": return 'totalFollowers';
+        case "סך הכל הודעות חברים": return 'totalFriendMessages';
+        case "הודעת חברים אחרונה": return 'lastFriendMessageDate';
+        case "פעילות אחרונה": return 'lastActivityDate';
+        case "תאריך הצטרפות": return 'joinDate';
+        case "תאריך לידה": return "birthDate";   
+        case "עמוד זה": return "contact";
     }
+    return fields;
 }
 
 
 export default class Fxios {
     constructor(proxies) {
         const HttpsCookieProxyAgent=createCookieAgent(HttpsProxyAgent);
-        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(":"));
+        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(""));
         this.gmailClient = null;
         this.proxyManager = {
             proxies,
-            nextProxy:async()=>{
-                return new Promise((resolve)=>{
-                    let proxies = this.proxyManager.proxies;
-                    if(!proxies || proxies.length == 0) return;
-                    proxies.push(proxies.shift());
-                    this.proxyManager.proxies=proxies;
-                    resolve(proxies[0]);
-                })
+            nextProxy:()=>{
+                let proxies = this.proxyManager.proxies;
+                if(!proxies || proxies.length == 0) return;
+                proxies.push(proxies.shift());
+                this.proxyManager.proxies=proxies;
+                return proxies[0];
             }
         };
         this.info = {
@@ -142,7 +156,9 @@ export default class Fxios {
         let jar = new tough();
         this.instance = axios.create({
             withCredentials: true,
+            validateStatus:()=>true,
             httpsAgent: args?new HttpsCookieProxyAgent({
+                protocol:"http",
                 hostname:args[1][0],
                 username:args[0][0],
                 password:args[0][1],
@@ -169,14 +185,14 @@ export default class Fxios {
             vb_login_md5password: "",
             vb_login_md5password_utf: ""
         });
-        await this.instance.post("https://www.fxp.co.il/login.php?do=login", data, options);
+        let post = await this.instance.post("https://www.fxp.co.il/login.php?do=login", data, options);
         var res = await this.instance.get("https://www.fxp.co.il");
         const securitytoken = /var SECURITYTOKEN = "(.*?)";/.exec(res.data);
         const send = /send = '(.*?)'/g.exec(res.data);
         const userId = /var LOGGEDIN = (.*?) >/.exec(res.data);
         if (send == null || securitytoken == null || userId == null) {
-            console.error("error occured while logging in, please make sure you entered correct username and password");
-            return;
+            console.error("error occured while logging in to "+username+" with password"+password+", please make sure you entered correct username and password");
+            return post;
         }
         this.info.securitytoken = securitytoken[1];
         this.info.send = send[1];
@@ -187,6 +203,7 @@ export default class Fxios {
             this.socket.send(send);
         });
         console.log("logged in");
+        return post;
     }
     async addmember(username, password, email) {
         let md5 = crypto.createHash('md5').update(password).digest('hex');
@@ -194,7 +211,7 @@ export default class Fxios {
             this.gmailClient= new Gmailnator();
             await this.gmailClient.init();
         }
-        let gmail = email? email:await this.gmailClient.generateGmail();
+        let gmail = email||await this.gmailClient.generateGmail();
         const data = querystring.stringify({
             username: username,
             password: password,
@@ -213,25 +230,26 @@ export default class Fxios {
             year: ""
         });
         return axios.post("https://www.fxp.co.il/register.php?do=addmember", data, {
-            httpsAgent:this.proxyManager.proxies && new HttpsProxyAgent("http://"+this.proxyManager.proxies[0])
+            httpsAgent: this.proxyManager.proxies && new HttpsProxyAgent("http://"+this.proxyManager.proxies[0])
         })
             .then(async(res) => {
-                await this.proxyManager.nextProxy();
                 if (!res.data.includes("נשלחה הודעה בנוגע לפרטי החשבון שלך לכתובת")){
-                    console.log("couldnt create a new user! make sure your username is in English!");
+                    console.log("couldnt create "+username+"! make sure your username is in English!");
+                    this.proxyManager.nextProxy()
                     return {created:false,validated:false,data:res.data};
                 }
                 console.log("the user " + username + " has created sueccesfully");
                 let validated = false; 
                 if(gmail != email)validated = await this.gmailClient.validateUser(gmail,username);
-                return {created:true,validated:validated!=false,data:res.data};
+                validated||this.proxyManager.nextProxy();
+                return {created:true,validated:validated,data:res.data};
             })
             .catch((error) => {
                 console.error(error);
                 return {created:false,validated:false,data:error};
             });
     }
-    async addmembers(usernames,password){
+    async addmembers(usernames,password,safeMode){
         if(!this.gmailClient){
             this.gmailClient= new Gmailnator();
             await this.gmailClient.init();
@@ -244,7 +262,7 @@ export default class Fxios {
         else if(this.proxyManager.proxies.length < usernames.length) console.log("notice: you dont have enough proxies. this may result some issues");
         let gmails = await this.gmailClient.generateGmails(usernames.length);
         let task = (i)=>new Promise(async(resolve)=>{
-            hasProxies || await new Promise(resolve => setTimeout(resolve, 1500*i));
+            safeMode && await new Promise(resolve => setTimeout(resolve, 1500*i));
             let stack={username:usernames[i],gmail:gmails[i], created:false,validated:false};
             this.addmember(stack.username,password,stack.gmail).then((status)=>{
                 if(!status.created) {
@@ -261,7 +279,13 @@ export default class Fxios {
             }).catch(()=>resolve(stack))
         });
         let tasks = new Array(usernames.length).fill(null).map((e,i)=>task(i));
-        return Promise.all(tasks);
+        let result = await Promise.all(tasks);
+        let unValidated=result.filter((stack,i)=>{
+            stack.index=i;
+            stack.created && !stack.validated
+        });
+        console.log(unValidated.length==0?"all of the created users are validated!":unValidated.length+" gmails were unavailable...");
+        return result;
     }
     logout() {
         var securitytoken = this.info.securitytoken;
@@ -281,12 +305,6 @@ export default class Fxios {
             securitytoken: securitytoken,
         });
         return this.instance.post("https://www.fxp.co.il/ajax.php", data, options)
-            .then((respnse) => {
-                console.log("like added to message " + commentId);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
     }
     sendMessage(showtherdId, message) {
         var securitytoken = this.info.securitytoken;
@@ -328,12 +346,6 @@ export default class Fxios {
             parseurl: "1"
         });
         return this.instance.post("https://www.fxp.co.il/newthread.php?do=postthread&f=" + forumId, data, options)
-            .then(() => {
-                console.log("new showthread has created");
-            })
-            .catch((err) => {
-                console.log(err);
-            });
     }
     deleteMessage(commentId) {
         var securitytoken = this.info.securitytoken;
@@ -345,12 +357,6 @@ export default class Fxios {
             do: "deletepost"
         });
         return this.instance.post("https://www.fxp.co.il/editpost.php?do=deletepost&p=" + commentId, data, options)
-            .then(() => {
-                console.log("the message " + commentId + " has deleted");
-            })
-            .catch((err) => {
-                console.log(err);
-            });
     }
     editMessage(commentId, content) {
         var securitytoken = this.info.securitytoken;
@@ -365,12 +371,6 @@ export default class Fxios {
             relpath: "showthread.php?p=" + commentId
         });
         return this.instance.post("https://www.fxp.co.il/editpost.php?do=updatepost&postid=" + commentId, data, options)
-            .then(() => {
-                console.log("the massage content is now " + content);
-            })
-            .catch((err) => {
-                console.log(err);
-            });
     }
     sendNewPM(user, subject, message) {
         var securitytoken = this.info.securitytoken;
@@ -386,12 +386,6 @@ export default class Fxios {
             frompage: "1"
         });
         return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
-            .then(() => {
-                console.log('new private message has been sent and it is "' + message + '" now');
-            })
-            .catch((err) => {
-                console.log(err);
-            });
     }
     sendPM(pmId, user, message) {
         var securitytoken = this.info.securitytoken;
@@ -404,7 +398,7 @@ export default class Fxios {
             loggedinuser: this.info.userId + "",
             parseurl: "1",
             signature: "1",
-            title: "תגובה להודעה:",
+            title: "תגובה להודעה",
             recipients: user,
             forward: "0",
             savecopy: "1",
@@ -412,12 +406,6 @@ export default class Fxios {
             wysiwyg: "1",
         });
         return this.instance.post("https://www.fxp.co.il/private_chat.php", data, options)
-            .then(() => {
-                console.log("private message has been sent to chat number " + pmId);
-            })
-            .catch((err) => {
-                console.log(err);
-            });
     }
     async getUserInfo(id) {
         const res = await axios.get("https://www.fxp.co.il/member.php?u=" + id);
@@ -512,9 +500,9 @@ export default class Fxios {
             lastPage: lastPage ? Number(lastPage) : 1,
             messages: async (page = 1, last = null, pp = 15, callback) => {
                 if (last == null || last < 1) last = Math.round((thread.lastPage - 1) * 15 / pp);
-                let pages = ["pages:"]
+                let pages = ["pages"]
                 for (let i = page - 1; i <= last; i++) {
-                    let list = ["messages:"];
+                    let list = ["messages"];
                     var res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + thread_id + "&page=" + (page + i) + "&pp=" + pp)
                     let $ = load(res.data, { decodeEntities: false });
                     let messages = $("li.postbit.postbitim.postcontainer");
