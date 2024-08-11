@@ -1,15 +1,15 @@
 import axios from 'axios';
 import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
 import { CookieJar as tough } from 'tough-cookie';
-import { load } from 'cheerio';
+import { html, load } from 'cheerio';
 import Gmailnator from "./modules/validateUser.js";
 import querystring from "query-string";
 import crypto from "crypto";
 import io from 'socket.io-client';
-import {HttpCookieAgent,HttpsCookieAgent, createCookieAgent} from "http-cookie-agent/http"
+import { HttpCookieAgent, HttpsCookieAgent, createCookieAgent } from "http-cookie-agent/http"
 import { HttpsProxyAgent } from "https-proxy-agent";
 export const options = "headers[user-agent]=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F81.0.4044.138%20Safari%2F537.36";
-export var htmlToBBCode = function (html) {
+const htmlToBBCode = function (html) {
     return html
         .replace(/<img(.*?)src="(.*?)"(.*?)>/gi, "[img]$2[/img]")
         .replace(/&nbsp;/g, ' ')
@@ -57,67 +57,85 @@ export var htmlToBBCode = function (html) {
         .replace(/\$\.\^/g, '<br>')
         .replace(/^<br>|<br>$/g, '');
 };
-async function getMore(html){
+const parseFxpDate = (string)=>{
+    string=string.replace(String.fromCharCode(160)," ");
+    let date = string, time;
+    if(string.includes(" ")){
+        [date,time] = string.split(" ");
+        if(string.includes("היום") || string.includes("אתמול")) {
+            const [hours, minutes] = time.split(':').map(Number);
+            const day = new Date();
+            if(date.includes("אתמול"))day.setDate(day.getDate()-1);
+            day.setHours(hours, minutes, 0, 0);
+            return day;
+        }
+    }
+    let [day, month, year] = date.split("-");
+    console.log(`${month}-${day}-${year}${time?" "+time:""}`)
+    date=new Date(`${month}-${day}-${year}${time?" "+time:""}`);
+    return date;
+}
+async function getMore(html) {
     let $ = load(html);
     let friendss = $(".friends a.username");
     let friends = [];
-    friendss.map((i,e)=>{
-        let b=load(e)("a");
-        friends.push({name:b.attr("title"), id:Number(b.attr('href').replace(/\D/g,""))});
+    friendss.map((i, e) => {
+        let b = load(e)("a");
+        friends.push({ name: b.attr("title"), id: Number(b.attr('href').replace(/\D/g, "")) });
     })
-    
+
     const table = $("#view-aboutme > div:nth-child(2)");
     let values = table.find("dd");
-    let fields= table.find("dt");
+    let fields = table.find("dt");
 
     let gen = {}
     for (let i = 0; i < fields.length; i++) {
-        gen[translate($(fields[i]).text().trim())]=load(values[i]).text().trim()
+        gen[translate($(fields[i]).text().trim())] = load(values[i]).text().trim()
     }
-    
+
     let stats = {};
     values = $("dl.stats.blockrow dd");
     fields = $("dl.stats.blockrow dt");
     for (let i = 0; i < fields.length; i++) {
-        let value = load(values[i]).text().trim().replace(/,/g,"");
+        let value = load(values[i]).text().trim().replace(/,/g, "");
         let field = translate($(fields[i]).text().trim());
-        if(field.includes("Date")){
-            let [day, month, year] = value.split("-");
-            stats[field] = new Date(`${month}-${day}-${year}`);
-        } 
-        else stats[field] = isNaN(value) ? value: Number(value);
+        if (field.includes("Date")) {
+            let date = parseFxpDate(value);
+            stats[field] = date;
+        }
+        else stats[field] = isNaN(value) ? value : Number(value);
     }
 
     let signature = $(".signature_holder").html();
     signature = signature && htmlToBBCode(signature);
-    return {gen,friends,stats,signature};
+    return { gen, friends, stats, signature };
 }
-function scrappUserInfo(message,instance) {
+function scrappUserInfo(message, instance) {
     let c = load(message, { decodeEntities: false });
     let id = Number(c('.user-picture-holder').attr('data-user-id'));
     let name = c(".user_pic_" + id).children().attr("alt").replace("הסמל האישי של", "").trim();
     let subname = c('.usertitle').text().replace(/\n/g, '');
     let isConnected = c(".inlineimg").attr("alt").includes("מחובר")
-    let more = async()=>{
-        let html = (await axios.get("https://www.fxp.co.il/member.php?u="+id)).data;
+    let more = async () => {
+        let html = (await axios.get("https://www.fxp.co.il/member.php?u=" + id)).data;
         return getMore(html);
     }
-    let rank = $(".username_container strong span").attr("class");
+    let rank = c(".username_container strong span").attr("class");
 
-    return {id,name,subname,isConnected,rank,more};
+    return { id, name, subname, isConnected, rank, more };
 }
-function translate(fields){
-    fields=fields.replace(":","");
-    switch(fields){
+function translate(fields) {
+    fields = fields.replace(":", "");
+    switch (fields) {
         case "שם פרטי": return "personalName"
-        case "ביוגרפיה": return "biography" 
-        case "תחומי עניין": return "hobbies" 
-        case "מקצוע": return "profession" 
-        case "מין": return "sex" 
-        case "סטאטוס זוגי": return "relationshipStatus" 
-        case "מתעניין/ת ב": return "attractedTo" 
-        case "איזור מגורים": return "livingArea" 
-        case "עיר מגורים": return "city" 
+        case "ביוגרפיה": return "biography"
+        case "תחומי עניין": return "hobbies"
+        case "מקצוע": return "profession"
+        case "מין": return "sex"
+        case "סטאטוס זוגי": return "relationshipStatus"
+        case "מתעניין/ת ב": return "attractedTo"
+        case "איזור מגורים": return "livingArea"
+        case "עיר מגורים": return "city"
         case "סך הכל הודעות": return 'totalMessages';
         case "מס' הודעות ביום": return 'messagesPerDay';
         case "סך הכל לייקים": return 'totalLikes';
@@ -126,25 +144,63 @@ function translate(fields){
         case "הודעת חברים אחרונה": return 'lastFriendMessageDate';
         case "פעילות אחרונה": return 'lastActivityDate';
         case "תאריך הצטרפות": return 'joinDate';
-        case "תאריך לידה": return "birthDate";   
+        case "תאריך לידה": return "birthDate";
         case "עמוד זה": return "contact";
     }
     return fields;
 }
-
+function scrappMessageInfo(post,bot,id) {
+    let c = load(post, { decodeEntities: false });
+    const user = scrappUserInfo(post, bot.instance);
+    const message = {
+        author: () => user,
+        id: () => Number(id),
+        VBQuote: () => { },
+        content: () => htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
+        reply: () => { },
+        time: () => {
+            let time = c(".date").text().trim();
+            time=time.replace("היום ").replace("אתמול ");
+            return parseFxpDate(time);
+        }
+    };
+    message.VBQuote = () => `[QUOTE=${user.name};${id}]${message.content()}[/QUOTE]<br><br>`;
+    message.reply = (msg) => {
+        var securitytoken = bot.info.securitytoken;
+        const data = querystring.stringify({
+            securitytoken: securitytoken,
+            ajax: "1",
+            message_backup: (message.VBQuote()+ msg).replace(/\n/g, "<br>"),
+            message: (message.VBQuote()+ msg).replace(/\n/g, "<br>"),
+            wysiwyg: "1",
+            signature: "1",
+            fromquickreply: "1",
+            s: "",
+            do: "postreply",
+            p: id,
+            specifiedpost: "0",
+            parseurl: "1",
+            loggedinuser: bot.info.userId + "",
+            poststarttime: "1593688317"
+        });
+        return bot.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + id, data, options);
+    }
+    return message;
+}
 
 export default class Fxios {
     constructor(proxies) {
-        const HttpsCookieProxyAgent=createCookieAgent(HttpsProxyAgent);
-        let args = proxies && proxies[0] && proxies[0].split("@").map(arr=>arr.split(""));
+        const HttpsCookieProxyAgent = createCookieAgent(HttpsProxyAgent);
+        let [username, password, host, port] = proxies && proxies[0] ? proxies[0].split(":") : [null, null, null, null];
+        //console.log({ username, password, host, port });
         this.gmailClient = null;
         this.proxyManager = {
             proxies,
-            nextProxy:()=>{
+            nextProxy: () => {
                 let proxies = this.proxyManager.proxies;
-                if(!proxies || proxies.length == 0) return;
+                if (!proxies || proxies.length == 0) return;
                 proxies.push(proxies.shift());
-                this.proxyManager.proxies=proxies;
+                this.proxyManager.proxies = proxies;
                 return proxies[0];
             }
         };
@@ -156,20 +212,21 @@ export default class Fxios {
         let jar = new tough();
         this.instance = axios.create({
             withCredentials: true,
-            validateStatus:()=>true,
-            httpsAgent: args?new HttpsCookieProxyAgent({
-                protocol:"http",
-                hostname:args[1][0],
-                username:args[0][0],
-                password:args[0][1],
-                port:Number(args[1][1]),
-                cookies:{
+            validateStatus: () => true,
+            httpsAgent: host ? new HttpsCookieProxyAgent({
+                rejectUnauthorized: false,
+                protocol: "http",
+                hostname: host,
+                username: username,
+                password: password,
+                port: Number(port),
+                cookies: {
                     jar
                 }
-            }):new HttpsCookieAgent({
-                cookies:{jar}
-            })
+            }) : undefined,
+            jar: host?undefined:jar
         });
+        console.log(this.instance.httpsAgent)
         axiosCookieJarSupport(this.instance);
     }
     async login(username, password) {
@@ -191,7 +248,8 @@ export default class Fxios {
         const send = /send = '(.*?)'/g.exec(res.data);
         const userId = /var LOGGEDIN = (.*?) >/.exec(res.data);
         if (send == null || securitytoken == null || userId == null) {
-            console.error("error occured while logging in to "+username+" with password"+password+", please make sure you entered correct username and password");
+            console.log("error occured while logging in to " + username + " with password" + password + ", please make sure you entered correct username and password");
+            console.log(post.data);
             return post;
         }
         this.info.securitytoken = securitytoken[1];
@@ -207,11 +265,11 @@ export default class Fxios {
     }
     async addmember(username, password, email) {
         let md5 = crypto.createHash('md5').update(password).digest('hex');
-        if(!this.gmailClient){
-            this.gmailClient= new Gmailnator();
+        if (!this.gmailClient) {
+            this.gmailClient = new Gmailnator();
             await this.gmailClient.init();
         }
-        let gmail = email||await this.gmailClient.generateGmail();
+        let gmail = email || await this.gmailClient.generateGmail();
         const data = querystring.stringify({
             username: username,
             password: password,
@@ -230,61 +288,61 @@ export default class Fxios {
             year: ""
         });
         return axios.post("https://www.fxp.co.il/register.php?do=addmember", data, {
-            httpsAgent: this.proxyManager.proxies && new HttpsProxyAgent("http://"+this.proxyManager.proxies[0])
+            httpsAgent: this.proxyManager.proxies && new HttpsProxyAgent("http://" + this.proxyManager.proxies[0])
         })
-            .then(async(res) => {
-                if (!res.data.includes("נשלחה הודעה בנוגע לפרטי החשבון שלך לכתובת")){
-                    console.log("couldnt create "+username+"! make sure your username is in English!");
+            .then(async (res) => {
+                if (!res.data.includes("נשלחה הודעה בנוגע לפרטי החשבון שלך לכתובת")) {
+                    console.log("couldnt create " + username + "! make sure your username is in English!");
                     this.proxyManager.nextProxy()
-                    return {created:false,validated:false,data:res.data};
+                    return { created: false, validated: false, data: res.data };
                 }
                 console.log("the user " + username + " has created sueccesfully");
-                let validated = false; 
-                if(gmail != email)validated = await this.gmailClient.validateUser(gmail,username);
-                validated||this.proxyManager.nextProxy();
-                return {created:true,validated:validated,data:res.data};
+                let validated = false;
+                if (gmail != email) validated = await this.gmailClient.validateUser(gmail, username);
+                validated || this.proxyManager.nextProxy();
+                return { created: true, validated: validated, data: res.data };
             })
             .catch((error) => {
                 console.error(error);
-                return {created:false,validated:false,data:error};
+                return { created: false, validated: false, data: error };
             });
     }
-    async addmembers(usernames,password,safeMode){
-        if(!this.gmailClient){
-            this.gmailClient= new Gmailnator();
+    async addmembers(usernames, password, safeMode) {
+        if (!this.gmailClient) {
+            this.gmailClient = new Gmailnator();
             await this.gmailClient.init();
         }
-        let hasProxies=this.proxyManager.proxies && this.proxyManager.proxies.length > 0;
-        if(!hasProxies) {
-            this.proxyManager.proxies=[false];
+        let hasProxies = this.proxyManager.proxies && this.proxyManager.proxies.length > 0;
+        if (!hasProxies) {
+            this.proxyManager.proxies = [false];
             console.log("notice: you havent provided any proxy adress, which means you are completely exposed to fxp's manegment. also, this will take more time");
         }
-        else if(this.proxyManager.proxies.length < usernames.length) console.log("notice: you dont have enough proxies. this may result some issues");
+        else if (this.proxyManager.proxies.length < usernames.length) console.log("notice: you dont have enough proxies. this may result some issues");
         let gmails = await this.gmailClient.generateGmails(usernames.length);
-        let task = (i)=>new Promise(async(resolve)=>{
-            safeMode && await new Promise(resolve => setTimeout(resolve, 1500*i));
-            let stack={username:usernames[i],gmail:gmails[i], created:false,validated:false};
-            this.addmember(stack.username,password,stack.gmail).then((status)=>{
-                if(!status.created) {
+        let task = (i) => new Promise(async (resolve) => {
+            safeMode && await new Promise(resolve => setTimeout(resolve, 1500 * i));
+            let stack = { username: usernames[i], gmail: gmails[i], created: false, validated: false };
+            this.addmember(stack.username, password, stack.gmail).then((status) => {
+                if (!status.created) {
                     resolve(stack);
                     return;
                 }
-                stack.created=true
-                this.gmailClient.validateUser(gmails[i],usernames[i]).then(async(validated)=>{
-                    stack.validated=validated;
+                stack.created = true
+                this.gmailClient.validateUser(gmails[i], usernames[i]).then(async (validated) => {
+                    stack.validated = validated;
                     resolve(stack);
-                }).catch(()=>{
+                }).catch(() => {
                     resolve(stack);
                 })
-            }).catch(()=>resolve(stack))
+            }).catch(() => resolve(stack))
         });
-        let tasks = new Array(usernames.length).fill(null).map((e,i)=>task(i));
+        let tasks = new Array(usernames.length).fill(null).map((e, i) => task(i));
         let result = await Promise.all(tasks);
-        let unValidated=result.filter((stack,i)=>{
-            stack.index=i;
+        let unValidated = result.filter((stack, i) => {
+            stack.index = i;
             stack.created && !stack.validated
         });
-        console.log(unValidated.length==0?"all of the created users are validated!":unValidated.length+" gmails were unavailable...");
+        console.log(unValidated.length == 0 ? "all of the created users are validated!" : unValidated.length + " gmails were unavailable...");
         return result;
     }
     logout() {
@@ -416,7 +474,7 @@ export default class Fxios {
             subname: $('.usertitle').text(),
             isConnected: res.data.includes($('.member_username').text() + " לא" + " מחובר/ת") == false,
             rank: $(".member_username span").attr("class"),
-            getMore:()=>getMore(res.data)
+            getMore: () => getMore(res.data)
         };
         return user;
     }
@@ -429,74 +487,27 @@ export default class Fxios {
             subname: $('.usertitle').text(),
             isConnected: res.data.includes(username + " לא" + " מחובר/ת") == false,
             rank: $(".member_username span").attr("class"),
-            getMore:()=>getMore(res.data)
+            getMore: () => getMore(res.data)
         };
         return user;
     }
     async getQouteInfo(commentId) {
-        const data = querystring.stringify({
-            securitytoken: this.info.securitytoken,
-            do: 'getquotes',
-            p: commentId + ''
-        });
-        const response = await this.instance.post('https://www.fxp.co.il/ajax.php?do=getquotes&p=' + commentId, data, options);
-        //getting the pages and saving the responses into the variables
-        const username = /(?<==)[^;"]+/gm.exec(response.data)[0];
-        //getting the name of the message author
-        const user = await this.getUserInfoByName(username);
-        //scrapping more data about the message author using the name we scrapped
-        console.log(response.data);
-        let Quote = /\[QUOTE=(.*?);(.*?)\]((.|\n)*?)\[\/QUOTE]/gm.exec(response.data)[0];
-        //scarpping the full VB Quote code 
-        const message = {
-            author: () => { return user; },
-            id: () => { return Number(commentId); },
-            VBQuote: () => { return Quote + "<br><br><br>"; },
-            content: () => { return Quote.replace("[/QUOTE]", '').replace(`[QUOTE=${user.name};${commentId}]`, '').replace(/<br><br>$/, ""); },
-            reply: (msg) => {
-                var securitytoken = this.info.securitytoken;
-                const data = querystring.stringify({
-                    securitytoken: securitytoken,
-                    ajax: "1",
-                    message_backup: Quote + msg + "",
-                    message: Quote + msg + "",
-                    wysiwyg: "1",
-                    signature: "1",
-                    fromquickreply: "1",
-                    s: "",
-                    do: "postreply",
-                    p: commentId + "",
-                    specifiedpost: "0",
-                    parseurl: "1",
-                    loggedinuser: this.info.userId + "",
-                    poststarttime: "1593688317"
-                });
-                return this.instance.post("https://www.fxp.co.il/newreply.php?do=postreply&p=" + commentId, data, options)
-                    .then((respnse) => {
-                        if (respnse.status != 200) {
-                            console.log(respnse.statusText);
-                        }
-                        else {
-                            console.log("reply has been sent");
-                        }
-                    })
-                    .catch(() => {
-                        console.log("reply has been sent");
-                    });
-            }
-        };
-        return message;
+        let res = await this.instance.get("https://www.fxp.co.il/showthread.php?&p="+commentId);
+        let $ = load(res.data,{decodeEntities:false});
+        let post = $('#post_' + commentId).html();
+        return scrappMessageInfo(post,this,commentId);
     }
     async getThreadInfo(thread_id) {
-        let res = await this.instance.get('https://www.fxp.co.il/printthread.php?t=' + thread_id + "&pp=15");
-        let content = /<blockquote class="restore"(.*?)>((.|\n|<br>)*?)<\/blockquote>/g.exec(res.data)[2];
-        let lastPage = load(res.data)(".first_last").children().attr("href");
-        if (lastPage) lastPage = lastPage.replace(/printthread.php\?t=(.*?)&pp=(.*?)&page=/, "");
+        let res = await this.instance.get('https://www.fxp.co.il/showthread.php?t=' + thread_id + "&pp=15");
+        let l = load(res.data);
+        let lastPage = l(".first_last").children().attr("href");
+        let content = l(".restore").first().text();
+        if (lastPage) lastPage = lastPage.match(/showthread.php\?t=(.*?)&page=(.*?)&pp=/)[2];
         let thread = {
             content: htmlToBBCode(content).trim(),
             id: Number(thread_id),
-            title: load(res.data)("h1").text().replace('&quot;', '"'),
-            author: await this.getUserInfoByName(res.data.match(/<span class="username">(.*?)<\/span>/)[1]),
+            title: l("h1").text().replace('&quot;', '"'),
+            author: scrappUserInfo(l.html(),this.instance),
             lastPage: lastPage ? Number(lastPage) : 1,
             messages: async (page = 1, last = null, pp = 15, callback) => {
                 if (last == null || last < 1) last = Math.round((thread.lastPage - 1) * 15 / pp);
@@ -507,19 +518,10 @@ export default class Fxios {
                     let $ = load(res.data, { decodeEntities: false });
                     let messages = $("li.postbit.postbitim.postcontainer");
                     messages.each(async (i, message) => {
-                        let user = scrappUserInfo(message,this.instance);
-                        let messgaeId = Number(c("li.postbit.postbitim.postcontainer").attr("id").replace(/\D/g, ""));
-                        const info = {
-                            author: () => user,
-                            id: () => messgaeId,
-                            VBQuote: () => "function () {}",
-                            content: () => htmlToBBCode(c('#post_message_' + messgaeId).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/, ''),
-                            reply: () => { }
-                        };
-                        info.VBQuote = () => `[QUOTE=${username};${messgaeId}]${info.content()}[/QUOTE]<br><br>`;
-                        info.reply = (msg) => this.sendMessage(Number(thread_id), info.VBQuote() + msg);
+                        let id = $(message).attr("id").replace(/\D/g,"");
+                        let info = scrappMessageInfo($(message).html(),this,id); 
                         list.push(info);
-                        if (callback) callback(info);
+                        if(callback)callback(info);
                     })
                     pages[i + 1] = list;
                 }
@@ -539,17 +541,7 @@ export default class Fxios {
                 return match;
             })();
             let post = $('#post_' + id).html();
-            let c = load(post,{decodeEntities:false});
-            const user = scrappUserInfo(post,this.instance);
-            const message = {
-                author: () => user,
-                id: () => Number(id),
-                VBQuote: () => { },
-                content: () => htmlToBBCode(c('#post_message_' + id).html()).replace(/\[QUOTE=(.*?)]((.|\n)*?)\[\/QUOTE]/, '').replace(/^<br><br><br>/g, ''),
-                reply: () => { }
-            };
-            message.VBQuote = () => `[QUOTE=${data.username};${id}]${message.content()}[/QUOTE]<br><br>`;
-            message.reply = (msg) => this.sendMessage(data.thread_id, message.VBQuote() + msg);
+            let message = scrappMessageInfo(post,this,id);
             callback(message, data.qouted);
         });
     }
@@ -625,7 +617,7 @@ export default class Fxios {
         const values = [...data.matchAll(regex)];
         return values.map(value => parseInt(value.at(1)));
     }
-    async uploadAudio(audio, duration,sox) {
+    async uploadAudio(audio, duration, sox) {
         let res = await this.instance.post("https://www.fxp.co.il/ajax.php", querystring.stringify({
             do: "insert_voice_data",
             thread_voice: 0,
@@ -634,7 +626,7 @@ export default class Fxios {
             f_id: 0,
             securitytoken: this.info.securitytoken
         }), options)
-    
+
         let data = res.data;
         let link = await this.instance.post("https://voice.fcdn.co.il/sound", querystring.stringify({
             function: "insertaudio",

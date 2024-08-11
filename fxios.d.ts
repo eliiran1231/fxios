@@ -43,6 +43,7 @@ export interface Message {
     VBQuote: () => string;
     content: () => string;
     reply: (msg: string) => void;
+    time: ()=> Date
 }
 export interface Like {
     messageLiked: Message;
